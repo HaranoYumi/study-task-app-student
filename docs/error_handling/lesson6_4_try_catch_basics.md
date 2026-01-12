@@ -327,7 +327,9 @@ public function complete(Request $request, Task $task)
 │                                                             │
 │  Controller で例外発生！                                    │
 │       ↓                                                     │
-│  Laravel の Handler.php が自動でキャッチ                    │
+│  Laravel が自動でキャッチ                                   │
+│  ※Laravel 11以降：bootstrap/app.php                        │
+│  ※Laravel 10以前：app/Exceptions/Handler.php               │
 │       ↓                                                     │
 │  適切な HTTP レスポンスに変換                               │
 │       ↓                                                     │
