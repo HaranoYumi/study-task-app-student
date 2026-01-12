@@ -12,9 +12,9 @@
 git checkout main
 git pull origin main
 
-git fetch origin lesson5-1
-git checkout lesson5-1
-git pull origin lesson5-1
+git fetch origin lesson_console_practice
+git checkout lesson_console_practice
+git pull origin lesson_console_practice
 ```
 
 > **💡 Tip**: すでに `lesson5-1` ブランチにいる場合は、この手順をスキップできます。
@@ -423,9 +423,13 @@ const fetchTask = async () => {
 ```javascript
 const fetchTask = async () => {
     console.log("🚀 fetchTask が呼ばれたで！");
+    console.log("📍 タスクID:", taskId);
 
     try {
         loading.value = true;
+
+        console.log("📡 APIリクエストを送信するで：", `/api/tasks/${taskId}`);
+
         const response = await axios.get(`/api/tasks/${taskId}`);
         task.value = response.data.data || response.data;
     } catch (err) {
@@ -438,6 +442,7 @@ const fetchTask = async () => {
         toast.error("タスクの読み込みに失敗しました");
     } finally {
         loading.value = false;
+        console.log("🏁 fetchTask 終了！");
     }
 };
 ```
