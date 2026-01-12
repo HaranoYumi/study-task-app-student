@@ -714,7 +714,7 @@ public function store(Request $request, Project $project)
 
 ---
 
-## 📚 次回予告：Lesson8
+## 📚 次回予告：Lesson6-5
 
 **「try-catch 乱用地獄」**
 
