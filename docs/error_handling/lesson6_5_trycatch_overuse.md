@@ -1153,7 +1153,7 @@ class UpdateTaskUseCase
 | 6-2         | Laravel が自動でやること     | Route Model Binding, FormRequest, APP_DEBUG  |
 | 6-3         | 自分で書くエラーハンドリング | 403, 409 の実装                              |
 | 6-4         | try-catch の基本             | try-catch の概念、Laravel の自動処理         |
-| **8**       | **UseCase での throw**       | **return vs throw、UseCase では throw だけ** |
-| 6-5（次回） | トランザクション             | 複数テーブル更新を安全に                     |
+| **6-5**     | **UseCase での throw**       | **return vs throw、UseCase では throw だけ** |
+| 6-6（次回） | トランザクション             | 複数テーブル更新を安全に                     |
 
 **🐘 ガネーシャ：** 「ほな、次回もよろしくな！さすガネーシャや！🐘✨」
