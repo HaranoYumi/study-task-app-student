@@ -30,8 +30,8 @@
 
 | ID | タイトル | ステータス | 作成者 | 用途 |
 |----|---------|-----------|--------|------|
-| 1 | 開発環境のセットアップ | **done** | オーナー | 完了済みタスクの編集を禁止（409） |
-| 2 | データベース設計 | **done** | 管理者 | 完了済みタスクを開始しようとする（409） |
+| 1 | 開発環境のセットアップ | **done** | オーナー | 完了済みタスクの編集・削除を禁止（409） |
+| 2 | データベース設計 | **done** | 管理者 | 完了済みタスクを開始・削除しようとする（409） |
 | 3 | 認証機能の実装 | **doing** | 管理者 | 作業中タスクを開始しようとする（409） |
 | 4 | APIドキュメントの作成 | **todo** | 一般メンバー | 未着手タスクをいきなり完了（409） |
 | 5 | UIコンポーネントの開発 | **doing** | 一般メンバー | 正常に完了できる |
@@ -85,7 +85,28 @@ Content-Type: application/json
 
 ---
 
-### Test 2: 完了済みタスクを開始しようとする
+### Test 2: 完了済みタスクは削除できない
+
+**ログインユーザー:** オーナー（`owner@example.com`）
+
+```
+DELETE http://localhost:8000/api/tasks/1
+Authorization: Bearer {owner_token}
+
+→ 期待される結果: 409 Conflict
+{
+  "message": "完了済みのタスクは削除できません"
+}
+```
+
+**🎯 ポイント:** 
+- タスク1は`status: done`なので削除できない
+- オーナーでもダメ（誰がやってもダメ）
+- 完了したタスクは履歴として残すべき
+
+---
+
+### Test 3: 完了済みタスクを開始しようとする
 
 **ログインユーザー:** 管理者（`admin@example.com`）
 
@@ -105,7 +126,7 @@ Authorization: Bearer {admin_token}
 
 ---
 
-### Test 3: 作業中タスクを開始しようとする
+### Test 4: 作業中タスクを開始しようとする
 
 **ログインユーザー:** 管理者（`admin@example.com`）
 
@@ -125,7 +146,7 @@ Authorization: Bearer {admin_token}
 
 ---
 
-### Test 4: 未着手タスクをいきなり完了しようとする
+### Test 5: 未着手タスクをいきなり完了しようとする
 
 **ログインユーザー:** 一般メンバー（`member@example.com`）
 
@@ -146,7 +167,7 @@ Authorization: Bearer {member_token}
 
 ---
 
-### Test 5: 正常に完了できる（比較用）
+### Test 6: 正常に完了できる（比較用）
 
 **ログインユーザー:** 一般メンバー（`member@example.com`）
 
@@ -170,7 +191,7 @@ Authorization: Bearer {member_token}
 
 ---
 
-### Test 6: 正常に開始できる（比較用）
+### Test 7: 正常に開始できる（比較用）
 
 **ログインユーザー:** オーナー（`owner@example.com`）
 
@@ -196,7 +217,7 @@ Authorization: Bearer {owner_token}
 
 ## 🚫 403 Forbidden のテスト
 
-### Test 7: 非メンバーがタスクを見ようとする
+### Test 8: 非メンバーがタスクを見ようとする
 
 **ログインユーザー:** 非メンバー（`outsider@example.com`）
 
@@ -216,7 +237,7 @@ Authorization: Bearer {outsider_token}
 
 ---
 
-### Test 8: 非メンバーがタスクを編集しようとする
+### Test 9: 非メンバーがタスクを編集しようとする
 
 **ログインユーザー:** 非メンバー（`outsider@example.com`）
 
@@ -240,7 +261,7 @@ Content-Type: application/json
 
 ---
 
-### Test 9: 一般メンバーがメンバーを追加しようとする
+### Test 10: 一般メンバーがメンバーを追加しようとする
 
 **ログインユーザー:** 一般メンバー（`member@example.com`）
 
@@ -265,7 +286,7 @@ Content-Type: application/json
 
 ---
 
-### Test 10: 管理者がメンバーを追加する（正常系）
+### Test 11: 管理者がメンバーを追加する（正常系）
 
 **ログインユーザー:** 管理者（`admin@example.com`）
 

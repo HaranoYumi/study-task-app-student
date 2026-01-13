@@ -26,8 +26,10 @@ class TaskSeeder extends Seeder
 
         // 【タスクID: 1】完了済みタスク（409テスト用）
         // - status: done
-        // - 用途: 完了済みタスクは編集できないことを確認
-        // - テスト: PUT /api/tasks/1 で409が返ることを確認
+        // - 用途: 完了済みタスクは編集・削除できないことを確認
+        // - テスト: 
+        //   - PUT /api/tasks/1 で409が返る（編集不可）
+        //   - DELETE /api/tasks/1 で409が返る（削除不可）
         Task::create([
             'project_id' => $project1->id,
             'title' => '開発環境のセットアップ',
@@ -38,8 +40,10 @@ class TaskSeeder extends Seeder
 
         // 【タスクID: 2】完了済みタスク（409テスト用）
         // - status: done
-        // - 用途: 完了済みタスクを開始しようとすると409
-        // - テスト: POST /api/tasks/2/start で409が返ることを確認
+        // - 用途: 完了済みタスクに対する不正な操作でエラーになることを確認
+        // - テスト: 
+        //   - POST /api/tasks/2/start で409が返る（完了済みは開始不可）
+        //   - DELETE /api/tasks/2 で409が返る（削除不可）
         Task::create([
             'project_id' => $project1->id,
             'title' => 'データベース設計',
