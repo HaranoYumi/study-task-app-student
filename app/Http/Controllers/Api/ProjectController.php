@@ -70,7 +70,7 @@ class ProjectController extends ApiController
     {
         // ❌ 冗長：手動で存在チェック
         $project = Project::find($id);
-        
+
         if (!$project) {
             return response()->json([
                 'message' => 'プロジェクトが見つかりません'

@@ -46,8 +46,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/tasks/{id}/start', [TaskController::class, 'start']);
     Route::post('/tasks/{id}/complete', [TaskController::class, 'complete']);
 
-    // Members
-    Route::get('/projects/{project}/members', [ProjectMemberController::class, 'index']);
-    Route::post('/projects/{project}/members', [ProjectMemberController::class, 'store']);
-    Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
+    // Members（❌ 冗長：{id}形式を使用）
+    Route::get('/projects/{projectId}/members', [ProjectMemberController::class, 'index']);
+    Route::post('/projects/{projectId}/members', [ProjectMemberController::class, 'store']);
+    Route::delete('/projects/{projectId}/members/{userId}', [ProjectMemberController::class, 'destroy']);
 });

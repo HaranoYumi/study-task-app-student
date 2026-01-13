@@ -27,6 +27,7 @@
 
 - **TaskController**: Route Model Bindingを使わず、`find()`と手動`if`チェック
 - **ProjectController**: FormRequestを使わず、`Validator`で手動バリデーション
+- **ProjectMemberController**: UseCaseを使わず、直接Eloquentで操作
 
 ### 3️⃣ ルーティング：`{id}`形式
 
@@ -34,7 +35,13 @@
 // ❌ 冗長な方法
 Route::get('/tasks/{id}', [TaskController::class, 'show']);
 Route::get('/projects/{id}', [ProjectController::class, 'show']);
+Route::get('/projects/{projectId}/members', [ProjectMemberController::class, 'index']);
 ```
+
+### 4️⃣ フロントエンド：シンプルなエラーハンドリング
+
+- **apiError.js**: 複雑な条件分岐を使わず、シンプルにエラーメッセージを取得
+- **useApiError.js**: リクエストIDやステータスコードの管理を省略した簡易版
 
 ---
 
@@ -280,6 +287,67 @@ Authorization: Bearer {your_token}
 }
 ```
 **ステータスコード**: `200 OK`
+
+---
+
+### 🟢 Test 8: メンバー一覧取得
+
+#### リクエスト
+```
+GET http://localhost:8000/api/projects/1/members
+Authorization: Bearer {your_token}
+```
+
+#### 期待される結果
+```json
+[
+  {
+    "id": 1,
+    "name": "ユーザー名",
+    "email": "user@example.com"
+  }
+]
+```
+**ステータスコード**: `200 OK`
+
+---
+
+### 🔴 Test 9: 404（存在しないプロジェクトのメンバー取得）
+
+#### リクエスト
+```
+GET http://localhost:8000/api/projects/99999/members
+Authorization: Bearer {your_token}
+```
+
+#### 期待される結果
+```json
+{
+  "message": "プロジェクトが見つかりません"
+}
+```
+**ステータスコード**: `404 Not Found`
+
+#### コード解説
+```php
+// ProjectMemberController.php（現在のコード）
+public function index(Request $request, $projectId): JsonResponse
+{
+    $project = Project::find($projectId);  // ← nullが返る
+    
+    if (!$project) {  // ← 手動でチェック
+        return response()->json([
+            'message' => 'プロジェクトが見つかりません'
+        ], 404);
+    }
+    
+    $members = $project->members;
+    return response()->json($members);
+}
+```
+
+**🐘 ガネーシャのコメント**:
+> 「これもRoute Model Binding使えば、if文書かんでええんやで！」
 
 ---
 

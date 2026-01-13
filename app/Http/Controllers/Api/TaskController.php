@@ -21,7 +21,7 @@ class TaskController extends ApiController
     {
         // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
         $project = Project::find($projectId);
-        
+
         if (!$project) {
             return response()->json([
                 'message' => 'プロジェクトが見つかりません'
@@ -40,7 +40,7 @@ class TaskController extends ApiController
     {
         // ❌ 冗長：手動でプロジェクトの存在チェック
         $project = Project::find($projectId);
-        
+
         if (!$project) {
             return response()->json([
                 'message' => 'プロジェクトが見つかりません'
@@ -91,7 +91,7 @@ class TaskController extends ApiController
     {
         // ❌ 冗長：手動で存在チェック
         $task = Task::find($id);
-        
+
         if (!$task) {
             return response()->json([
                 'message' => 'タスクが見つかりません'
