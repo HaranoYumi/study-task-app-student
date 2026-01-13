@@ -20,9 +20,14 @@ class TaskSeeder extends Seeder
 
         $project1 = Project::where('name', 'ECサイトリニューアルプロジェクト')->first();
 
-        // ECサイトプロジェクトのタスク（5件）
+        // ========================================
+        // ECサイトプロジェクトのタスク
+        // ========================================
 
-        // オーナーが完了したタスク
+        // 【タスクID: 1】完了済みタスク（409テスト用）
+        // - status: done
+        // - 用途: 完了済みタスクは編集できないことを確認
+        // - テスト: PUT /api/tasks/1 で409が返ることを確認
         Task::create([
             'project_id' => $project1->id,
             'title' => '開発環境のセットアップ',
@@ -31,7 +36,10 @@ class TaskSeeder extends Seeder
             'created_by' => $owner->id,
         ]);
 
-        // 管理者が完了したタスク
+        // 【タスクID: 2】完了済みタスク（409テスト用）
+        // - status: done
+        // - 用途: 完了済みタスクを開始しようとすると409
+        // - テスト: POST /api/tasks/2/start で409が返ることを確認
         Task::create([
             'project_id' => $project1->id,
             'title' => 'データベース設計',
@@ -40,7 +48,10 @@ class TaskSeeder extends Seeder
             'created_by' => $admin->id,
         ]);
 
-        // 管理者が作業中のタスク
+        // 【タスクID: 3】作業中タスク（409テスト用）
+        // - status: doing
+        // - 用途: 作業中タスクを開始しようとすると409
+        // - テスト: POST /api/tasks/3/start で409が返ることを確認
         Task::create([
             'project_id' => $project1->id,
             'title' => '認証機能の実装',
@@ -49,7 +60,10 @@ class TaskSeeder extends Seeder
             'created_by' => $admin->id,
         ]);
 
-        // メンバーの未完了タスク（削除禁止チェック用）
+        // 【タスクID: 4】未着手タスク（409テスト用）
+        // - status: todo
+        // - 用途: 未着手タスクをいきなり完了しようとすると409
+        // - テスト: POST /api/tasks/4/complete で409が返ることを確認
         Task::create([
             'project_id' => $project1->id,
             'title' => 'APIドキュメントの作成',
@@ -58,6 +72,10 @@ class TaskSeeder extends Seeder
             'created_by' => $member->id,
         ]);
 
+        // 【タスクID: 5】作業中タスク（正常系テスト用）
+        // - status: doing
+        // - 用途: 正常に完了できることを確認
+        // - テスト: POST /api/tasks/5/complete で200が返ることを確認
         Task::create([
             'project_id' => $project1->id,
             'title' => 'UIコンポーネントの開発',
@@ -66,7 +84,10 @@ class TaskSeeder extends Seeder
             'created_by' => $member->id,
         ]);
 
-        // 追加タスク（バラエティ豊かに）
+        // 【タスクID: 6】未着手タスク（正常系テスト用）
+        // - status: todo
+        // - 用途: 正常に開始できることを確認
+        // - テスト: POST /api/tasks/6/start で200が返ることを確認
         Task::create([
             'project_id' => $project1->id,
             'title' => '商品一覧ページの実装',
@@ -75,6 +96,9 @@ class TaskSeeder extends Seeder
             'created_by' => $owner->id,
         ]);
 
+        // 【タスクID: 7】未着手タスク（通常編集用）
+        // - status: todo
+        // - 用途: 通常の編集・削除テスト
         Task::create([
             'project_id' => $project1->id,
             'title' => 'カート機能の実装',

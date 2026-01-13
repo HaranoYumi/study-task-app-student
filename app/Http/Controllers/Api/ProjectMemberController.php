@@ -33,7 +33,7 @@ class ProjectMemberController extends ApiController
     public function store(Request $request, Project $project): ProjectMemberResource
     {
         // ✅ Route Model Bindingで$projectは存在保証済み
-        
+
         // バリデーション
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
@@ -57,7 +57,7 @@ class ProjectMemberController extends ApiController
     public function destroy(Project $project, User $user): JsonResponse
     {
         // ✅ Route Model Bindingで$project、$userともに存在保証済み
-        
+
         // メンバーを削除
         $project->members()->detach($user->id);
 
