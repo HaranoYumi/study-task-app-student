@@ -32,7 +32,7 @@
 
 **🐘 ガネーシャ：** 「ほう、デフォルトの処理じゃなくて、自分でエラーを制御したいんやな？」
 
-**👩‍💻 ユーザー：** 「はい！あと、エラーが起きた時に特別なログを残したりとか...」
+**👩‍💻 ユーザー：** 「はい！あと、エラーが起きた時に**特別な形式で**ログを残したりとか...例えばタスク ID とかユーザー ID も一緒に記録したいんです」
 
 **🐘 ガネーシャ：** 「ええ心がけや。ほな、今日は『例外処理』について教えたるわ。try-catch っていう仕組みを使うんや」
 
@@ -244,11 +244,15 @@ public function complete(Request $request, Task $task)
 
 **👩‍💻 ユーザー：** 「えっと...500 エラーになりますか？」
 
-**🐘 ガネーシャ：** 「そう！ユーザーには『Server Error』としか表示されへん」
+**🐘 ガネーシャ：** 「そう！ユーザーには『Server Error』としか表示されへん。ただ、**Laravel はちゃんとログには記録してくれとる**んやで」
+
+**👩‍💻 ユーザー：** 「あ、そうなんですね！じゃあ try-catch を書かなくてもログは残るんですか？」
+
+**🐘 ガネーシャ：** 「せや。Laravel は例外が発生したら自動で `storage/logs/laravel.log` に記録してくれる。ただ、記録される内容は Laravel のデフォルト形式になるんや」
 
 ---
 
-#### After：try-catch あり
+#### After：try-catch あり（特別なログ形式が必要な場合）
 
 ```php
 public function complete(Request $request, Task $task)
@@ -267,8 +271,14 @@ public function complete(Request $request, Task $task)
         return new TaskResource($task);
 
     } catch (Exception $e) {
-        // エラーをログに記録
-        Log::error('タスク完了エラー: ' . $e->getMessage());
+        // 【ポイント】特別な形式でログを記録
+        // タスクIDやユーザーIDなど、調査に必要な情報を付加
+        Log::error('タスク完了エラー', [
+            'task_id' => $task->id,
+            'project_id' => $task->project_id,
+            'user_id' => $request->user()->id,
+            'error' => $e->getMessage(),
+        ]);
 
         // ユーザーにはカスタムメッセージを返す
         return response()->json([
@@ -278,13 +288,63 @@ public function complete(Request $request, Task $task)
 }
 ```
 
-**👩‍💻 ユーザー：** 「catch の中で、ログを記録してカスタムメッセージを返してるんですね！」
+**👩‍💻 ユーザー：** 「catch の中で、タスク ID やユーザー ID も一緒にログに残してるんですね！」
 
-**🐘 ガネーシャ：** 「せや！これで『何が起きたか』を把握しつつ、ユーザーには分かりやすいメッセージを返せる」
+**🐘 ガネーシャ：** 「せや！これが try-catch を書く意味や。デフォルトのログやと『どのタスクで』『誰が操作した時に』起きたか分からへんやろ？自分で catch して**特別な情報を付加する**ことで、後から調査しやすくなるんや」
 
 ---
 
-### 📊 try-catch のメリット
+### ⚠️ 意味のない try-catch に注意！
+
+**🐘 ガネーシャ：** 「ここで大事な注意点があるで」
+
+**👩‍💻 ユーザー：** 「なんですか？」
+
+**🐘 ガネーシャ：** 「**デフォルトと変わらん catch は意味がない**んや」
+
+```php
+// ❌ ダメな例：デフォルトと変わらない
+try {
+    $task->update(['status' => 'done']);
+    return new TaskResource($task);
+} catch (Exception $e) {
+    Log::error($e->getMessage());  // ← Laravel が自動でやってくれることと同じ
+    throw $e;  // ← そのまま投げ直すだけ
+}
+```
+
+**👩‍💻 ユーザー：** 「あれ？これだと try-catch を書いた意味がないですね...」
+
+**🐘 ガネーシャ：** 「せや！Laravel は勝手にログを記録して、勝手に 500 エラーを返してくれる。それと同じことを自分で書いても意味がないんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              try-catch を書く意味があるケース                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ✅ ログの形式をカスタマイズしたい                          │
+│     → タスクID、ユーザーID など追加情報を記録              │
+│                                                             │
+│  ✅ エラーメッセージをカスタマイズしたい                    │
+│     → ユーザーに分かりやすいメッセージを返す               │
+│                                                             │
+│  ✅ 特定のエラー時だけ通知を飛ばしたい                      │
+│     → DB接続エラーの時だけSlack/メール通知                 │
+│                                                             │
+│  ✅ エラー時に特別な処理をしたい                            │
+│     → リトライする、代替処理をする                         │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  ❌ デフォルトと同じことをするだけ                          │
+│     → Laravel に任せればOK、書く必要なし                   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📊 try-catch のメリット（正しく使った場合）
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -294,13 +354,16 @@ public function complete(Request $request, Task $task)
 │  1️⃣ エラーメッセージをカスタマイズできる                    │
 │     → ユーザーに分かりやすいメッセージを返せる              │
 │                                                             │
-│  2️⃣ エラーをログに記録できる                                │
-│     → 後から原因を調査できる                                │
+│  2️⃣ ログの内容・形式を自分で決められる                      │
+│     → 調査に必要な情報（ID等）を付加できる                  │
 │                                                             │
-│  3️⃣ エラー時の処理を自分で決められる                        │
+│  3️⃣ 特定のエラー時だけ通知を飛ばせる                        │
+│     → DB接続エラー時にSlack/メール通知、など                │
+│                                                             │
+│  4️⃣ エラー時の処理を自分で決められる                        │
 │     → リトライする、別の処理をする、など                    │
 │                                                             │
-│  4️⃣ プログラムが完全に止まるのを防げる                      │
+│  5️⃣ プログラムが完全に止まるのを防げる                      │
 │     → 一部の失敗を許容して処理を続けられる                  │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -316,7 +379,7 @@ public function complete(Request $request, Task $task)
 
 **👩‍💻 ユーザー：** 「え？書かないとエラーで止まるんじゃないですか？」
 
-**🐘 ガネーシャ：** 「Laravel が自動で catch してくれるんや」
+**🐘 ガネーシャ：** 「Laravel が自動で catch してくれるんや。**しかもログも自動で記録してくれる**」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -331,6 +394,8 @@ public function complete(Request $request, Task $task)
 │  ※Laravel 11以降：bootstrap/app.php                        │
 │  ※Laravel 10以前：app/Exceptions/Handler.php               │
 │       ↓                                                     │
+│  ✅ 自動でログに記録（storage/logs/laravel.log）            │
+│       ↓                                                     │
 │  適切な HTTP レスポンスに変換                               │
 │       ↓                                                     │
 │  クライアントに返す                                         │
@@ -341,6 +406,7 @@ public function complete(Request $request, Task $task)
 │                                                             │
 │  【本番環境】APP_DEBUG=false                                │
 │  → シンプルな「Server Error」を表示                        │
+│  → でもログにはちゃんと詳細が残る！                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -351,54 +417,56 @@ public function complete(Request $request, Task $task)
 
 **👩‍💻 ユーザー：** 「じゃあ、try-catch を書く必要ないんですか？」
 
-**🐘 ガネーシャ：** 「場合によるな。整理してみよか」
+**🐘 ガネーシャ：** 「**デフォルトの処理で十分なら書く必要ない**。でも、さっき言うたように『ログに追加情報を入れたい』とか『エラーメッセージをカスタマイズしたい』なら書く意味があるんや」
 
 ---
 
 ### 📊 try-catch を書く？書かない？
 
-| 状況                                 | try-catch       | 理由                       |
-| ------------------------------------ | --------------- | -------------------------- |
-| 通常の DB 操作                       | 書かなくても OK | Laravel が自動処理         |
-| エラーメッセージをカスタマイズしたい | 書く            | 自分で制御したい           |
-| エラーをログに記録したい             | 書く            | 記録が必要                 |
-| 失敗しても処理を続けたい             | 書く            | 握りつぶしではなく意図的に |
-| 外部 API 連携                        | 書く            | 失敗時の対応が必要         |
+| 状況                                   | try-catch       | 理由                            |
+| -------------------------------------- | --------------- | ------------------------------- |
+| 通常の DB 操作（デフォルトで OK）      | 書かなくても OK | Laravel が自動処理＋自動ログ    |
+| ログに追加情報（ID 等）を記録したい    | 書く            | 調査しやすくするため            |
+| エラーメッセージをカスタマイズしたい   | 書く            | ユーザー体験を良くするため      |
+| **特定のエラー時だけ通知を飛ばしたい** | **書く**        | **DB 接続エラー時のみ通知など** |
+| 失敗しても処理を続けたい               | 書く            | 握りつぶしではなく意図的に      |
+| 外部 API 連携                          | 書く            | 失敗時の対応が必要              |
+| デフォルトと同じログ・レスポンスで良い | 書かない        | **書いても意味がない**          |
 
-**🐘 ガネーシャ：** 「基本的には Laravel に任せて、『自分で制御したい時だけ』try-catch を書くんや」
+**🐘 ガネーシャ：** 「基本的には Laravel に任せて、『自分で制御したい時だけ』try-catch を書くんや。**書くなら意味のある処理を書く**。これが鉄則や！」
 
 ---
 
 ### 🎯 Laravel が自動で処理する例外
 
-**🐘 ガネーシャ：** 「Laravel は、よくある例外を自動でいい感じに処理してくれる」
+**🐘 ガネーシャ：** 「Laravel は、よくあるエラーを自動でいい感じに処理してくれる」
 
 ```php
-// ModelNotFoundException → 404 Not Found
+// モデルが見つからない → 404 Not Found
 $task = Task::findOrFail($id);  // 見つからない → 自動で 404
 
-// ValidationException → 422 Unprocessable Entity
+// バリデーション失敗 → 422 Unprocessable Entity
 $request->validate([...]);  // バリデーション失敗 → 自動で 422
 
-// AuthenticationException → 401 Unauthorized
+// 認証失敗 → 401 Unauthorized
 // 認証失敗 → 自動で 401
 ```
 
-| 例外クラス                | HTTP ステータス | 発生する場面                  |
-| ------------------------- | --------------- | ----------------------------- |
-| `ModelNotFoundException`  | 404             | `findOrFail()` で見つからない |
-| `ValidationException`     | 422             | バリデーション失敗            |
-| `AuthenticationException` | 401             | 認証失敗                      |
-| `AuthorizationException`  | 403             | 認可失敗                      |
-| `その他の Exception`      | 500             | 予期しないエラー              |
+| 発生する場面                  | HTTP ステータス | Laravel の自動処理 |
+| ----------------------------- | --------------- | ------------------ |
+| `findOrFail()` で見つからない | 404             | 自動でレスポンス   |
+| バリデーション失敗            | 422             | 自動でレスポンス   |
+| 認証失敗                      | 401             | 自動でレスポンス   |
+| 認可失敗                      | 403             | 自動でレスポンス   |
+| その他のエラー                | 500             | 自動でレスポンス   |
 
 **👩‍💻 ユーザー：** 「だから Route Model Binding や FormRequest を使うと、自動でエラーが返るんですね！」
 
-**🐘 ガネーシャ：** 「せや！Lesson6-2 で学んだ『Laravel が自動でやってくれること』は、この仕組みのおかげなんや」
+**🐘 ガネーシャ：** 「せや！Lesson6-2 で学んだ『Laravel が自動でやってくれること』は、この仕組みのおかげなんや。例外クラスの詳しい話は次の章でやるで」
 
 ---
 
-## 📝 第 5 章：Exception の種類
+## 📝 第 5 章：Exception の種類と階層構造
 
 ### 🎭 色んな Exception がある
 
@@ -411,15 +479,13 @@ throw new Exception('一般的なエラー');
 // PHP 組み込みの例外
 throw new InvalidArgumentException('引数が不正です');
 throw new RuntimeException('実行時エラーです');
-throw new LogicException('ロジックエラーです');
 
 // Laravel の例外
 throw new ModelNotFoundException('モデルが見つかりません');
-throw new ValidationException::withMessages(['field' => ['エラー']]);
+throw new QueryException('DBエラーです');
 
 // Symfony の HTTP 例外（Laravel でも使える）
 throw new HttpException(404, 'Not Found');
-throw new HttpException(403, 'Forbidden');
 throw new HttpException(409, 'Conflict');
 ```
 
@@ -433,42 +499,216 @@ throw new HttpException(409, 'Conflict');
 | `InvalidArgumentException` | 引数が不正           | 500             |
 | `RuntimeException`         | 実行時エラー         | 500             |
 | `ModelNotFoundException`   | モデルが見つからない | 404             |
+| `QueryException`           | DB エラー            | 500             |
 | `ValidationException`      | バリデーションエラー | 422             |
 | `HttpException`            | HTTP エラー全般      | 指定した値      |
 
 ---
 
-### 🎯 カスタム例外クラスを作る
+### 🌳 Exception の階層構造（重要！）
 
-**🐘 ガネーシャ：** 「自分で例外クラスを作ることもできるで」
+**🐘 ガネーシャ：** 「ここで大事な概念を教えるで。**Exception には親子関係がある**んや」
+
+**👩‍💻 ユーザー：** 「親子関係？」
+
+**🐘 ガネーシャ：** 「せや。`Exception` は**すべての例外の親**なんや。他の例外クラスは、この親から派生しとる」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Exception の階層構造                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│                    Exception（親）                          │
+│                  ／    ｜    ＼                              │
+│                 ／     ｜     ＼                             │
+│                ▼       ▼       ▼                            │
+│     RuntimeException  ...   InvalidArgumentException        │
+│            ｜                                                │
+│            ▼                                                │
+│      QueryException                                         │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  【ポイント】                                                │
+│  Exception は「すべての例外の親」                            │
+│  → catch (Exception $e) と書くと、すべての例外が捕まる     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「つまり、`catch (Exception $e)` は『なんでも捕まえる』ってことですか？」
+
+**🐘 ガネーシャ：** 「その通り！だから、**どのエラーを catch するかを意識する**ことが大切なんや」
+
+---
+
+### 🎯 特定の例外だけを catch する
+
+**🐘 ガネーシャ：** 「実はな、catch は『特定の種類の例外だけ』を捕まえることもできるんや」
+
+**👩‍💻 ユーザー：** 「え？全部の例外じゃなくて、狙った例外だけ？」
+
+**🐘 ガネーシャ：** 「せや！例えば『DB 接続エラーの時だけ通知を飛ばしたい』って場合に使えるんや」
 
 ```php
-// app/Exceptions/TaskNotCompletableException.php
-<?php
+use Illuminate\Database\QueryException;
 
-namespace App\Exceptions;
+try {
+    $task->update(['status' => 'done']);
+    return new TaskResource($task);
 
-use Exception;
+} catch (QueryException $e) {
+    // DB関連のエラーだけをキャッチ！
+    // → 緊急度が高いのでSlack/メール通知
+    Mail::to('admin@example.com')->send(new DatabaseErrorAlert($e));
 
-class TaskNotCompletableException extends Exception
-{
-    public function __construct(string $message = 'このタスクは完了できません')
-    {
-        parent::__construct($message);
-    }
+    Log::critical('DB接続エラー', [
+        'error' => $e->getMessage(),
+    ]);
+
+    return response()->json([
+        'message' => 'データベースエラーが発生しました',
+    ], 500);
+}
+// QueryException 以外の例外は、ここでは catch されない
+// → Laravel のデフォルト処理に任せる
+```
+
+**👩‍💻 ユーザー：** 「`catch (Exception $e)` じゃなくて `catch (QueryException $e)` にすると、DB 関連のエラーだけ捕まえられるんですね！」
+
+**🐘 ガネーシャ：** 「その通り！他の例外は素通りして、Laravel のデフォルト処理に任せるんや」
+
+---
+
+### 📊 複数の catch で例外を分けて処理する
+
+**🐘 ガネーシャ：** 「さらに、複数の catch を並べて、例外の種類ごとに処理を分けることもできるんや」
+
+```php
+use Illuminate\Database\QueryException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+
+try {
+    $task = Task::findOrFail($id);
+    $task->update(['status' => 'done']);
+    return new TaskResource($task);
+
+} catch (ModelNotFoundException $e) {
+    // タスクが見つからない場合
+    return response()->json([
+        'message' => '指定されたタスクが見つかりません',
+    ], 404);
+
+} catch (QueryException $e) {
+    // DB接続エラーの場合 → 緊急通知！
+    Mail::to('admin@example.com')->send(new DatabaseErrorAlert($e));
+
+    return response()->json([
+        'message' => 'データベースエラーが発生しました',
+    ], 500);
+
+} catch (Exception $e) {
+    // その他すべての例外
+    Log::error('予期しないエラー', [
+        'error' => $e->getMessage(),
+    ]);
+
+    return response()->json([
+        'message' => 'エラーが発生しました',
+    ], 500);
+}
+```
+
+---
+
+### ⚠️ 複数 catch の優先順位（重要！）
+
+**🐘 ガネーシャ：** 「ここで大事な注意点があるで。**catch は上から順番にマッチする**んや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  catch の優先順位                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  例外が発生！                                                │
+│       ↓                                                     │
+│  catch (ModelNotFoundException $e) ← 1番目にチェック        │
+│       ↓ マッチしない                                        │
+│  catch (QueryException $e)         ← 2番目にチェック        │
+│       ↓ マッチしない                                        │
+│  catch (Exception $e)              ← 3番目にチェック        │
+│       ↓ すべての例外にマッチ！                              │
+│  ここで処理される                                            │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  【重要】Exception は「すべての例外の親」                    │
+│  → 一番最後に書かないと、他の catch に到達しない！          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「つまり、`catch (Exception $e)` を一番上に書くと...」
+
+**🐘 ガネーシャ：** 「全部そこで捕まってしまって、下の catch には絶対到達せえへん！」
+
+```php
+// ❌ ダメな例：Exception が一番上
+try {
+    // ...
+} catch (Exception $e) {
+    // ← すべての例外がここで捕まる
+} catch (QueryException $e) {
+    // ← ここには絶対到達しない！！
+} catch (ModelNotFoundException $e) {
+    // ← ここにも絶対到達しない！！
 }
 ```
 
 ```php
-// 使う側
-if ($task->status !== 'doing') {
-    throw new TaskNotCompletableException('作業中のタスクのみ完了できます');
+// ✅ 正しい例：具体的な例外から順番に
+try {
+    // ...
+} catch (ModelNotFoundException $e) {
+    // ← 具体的な例外を先に
+} catch (QueryException $e) {
+    // ← 具体的な例外を先に
+} catch (Exception $e) {
+    // ← 「その他すべて」は最後に
 }
 ```
 
-**👩‍💻 ユーザー：** 「名前を見ただけで『何のエラーか』が分かりますね！」
+**🐘 ガネーシャ：** 「**具体的な例外から順番に書く**。これが鉄則や！」
 
-**🐘 ガネーシャ：** 「せや！それがカスタム例外の良いところや」
+---
+
+### 💡 catch を書く時の心得
+
+**🐘 ガネーシャ：** 「まとめると、catch を書く時はこれを意識するんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  catch を書く時の心得                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣ 「何の例外を catch するか」を意識する                   │
+│     → なんでも Exception で捕まえるのは考えが浅い           │
+│     → 本当にすべて捕まえたいのか？特定のエラーだけか？      │
+│                                                             │
+│  2️⃣ Exception は「最後の砦」として使う                      │
+│     → 特定の例外を先に catch                                │
+│     → Exception は一番最後に書く                            │
+│                                                             │
+│  3️⃣ 必要ない catch は書かない                               │
+│     → Laravel のデフォルト処理で十分なら書かない            │
+│     → 「意味のある処理」がある時だけ書く                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「なるほど！`catch (Exception $e)` って書いておけば OK って思ってました...」
+
+**🐘 ガネーシャ：** 「それやと『どのエラーが起きても同じ処理』になってしまうやろ？DB エラーと認証エラーは違う対応が必要なこともある。**エラーの種類を意識する**ことで、より適切な対応ができるようになるんや」
 
 ---
 
@@ -476,7 +716,7 @@ if ($task->status !== 'doing') {
 
 ### 🎭 実際のコードで使ってみよう
 
-**🐘 ガネーシャ：** 「タスク完了の処理で、try-catch を使ってみよか」
+**🐘 ガネーシャ：** 「タスク完了の処理で、try-catch を使ってみよか。**ただし、意味のある使い方**をするで」
 
 ```php
 // TaskController.php
@@ -509,13 +749,18 @@ public function complete(Request $request, Task $task)
         return new TaskResource($task);
 
     } catch (Exception $e) {
-        // エラーログを記録
+        // 【ポイント】デフォルトとは違う、追加情報を含むログ
         Log::error('タスク完了処理でエラー', [
             'task_id' => $task->id,
+            'task_title' => $task->title,
+            'project_id' => $task->project_id,
             'user_id' => $request->user()->id,
+            'user_email' => $request->user()->email,
             'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
         ]);
 
+        // 【ポイント】デフォルトとは違う、カスタムメッセージ
         return response()->json([
             'message' => 'タスクの完了処理中にエラーが発生しました',
         ], 500);
@@ -538,11 +783,13 @@ public function complete(Request $request, Task $task)
 │  2️⃣ DB操作は try の中                                       │
 │     → 予期しないエラーが起きる可能性がある                  │
 │                                                             │
-│  3️⃣ catch 内でログを記録                                    │
-│     → 後から原因を調査できるように                          │
+│  3️⃣ catch 内で「追加情報を含む」ログを記録                  │
+│     → task_id, user_id など、調査に必要な情報を付加        │
+│     → これがデフォルトのログとの違い！                      │
 │                                                             │
 │  4️⃣ catch 内でカスタムメッセージを返す                      │
 │     → ユーザーには技術的な詳細を見せない                    │
+│     → 「Server Error」よりも分かりやすいメッセージ          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -568,13 +815,25 @@ public function complete(Request $request, Task $task)
 │                                                             │
 │  3️⃣ Laravel のデフォルト処理                                │
 │     → try-catch を書かなくても Laravel が自動で処理         │
-│     → ModelNotFoundException → 404                          │
-│     → ValidationException → 422                             │
+│     → ログも自動で記録される                                │
+│     → findOrFail() 失敗 → 404                               │
+│     → バリデーション失敗 → 422                              │
 │                                                             │
 │  4️⃣ try-catch を書く場面                                    │
+│     → ログの内容・形式をカスタマイズしたい時                │
 │     → エラーメッセージをカスタマイズしたい時                │
-│     → ログを記録したい時                                    │
+│     → 特定のエラー時だけ通知を飛ばしたい時                  │
 │     → 失敗しても処理を続けたい時                            │
+│     ⚠️ デフォルトと同じなら書く意味なし！                   │
+│                                                             │
+│  5️⃣ Exception は「すべての例外の親」                        │
+│     → catch (Exception $e) は全部捕まえてしまう             │
+│     → 「どのエラーを catch するか」を意識することが大切     │
+│                                                             │
+│  6️⃣ 特定の例外だけを catch できる                           │
+│     → catch (QueryException $e) でDB関連だけ捕まえる        │
+│     → 複数 catch は「具体的→汎用的」の順番で書く           │
+│     → Exception は一番最後！                                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -613,49 +872,47 @@ echo "D";
 
 ---
 
-### Q2：以下のコードに try-catch を追加して、エラー時にログを記録し、カスタムメッセージを返すようにしてください
+### Q2：以下の try-catch は意味がありますか？理由も答えてください
 
 ```php
-public function store(Request $request, Project $project)
-{
-    $task = Task::create([
-        'project_id' => $project->id,
-        'title' => $request->title,
-        'status' => 'todo',
-        'created_by' => $request->user()->id,
-    ]);
-
+try {
+    $task->update(['status' => 'done']);
     return new TaskResource($task);
+} catch (Exception $e) {
+    Log::error($e->getMessage());
+    throw $e;
 }
 ```
 
 <details>
 <summary>📖 答えを見る</summary>
 
+**回答：** ❌ 意味がない
+
+**理由：**
+
+-   `Log::error($e->getMessage())` → Laravel が自動でログに記録してくれる
+-   `throw $e` → そのまま投げ直すだけなので、Laravel のデフォルト処理と変わらない
+-   追加情報（task_id など）を記録していない
+-   カスタムメッセージも返していない
+
+**改善するなら：**
+
 ```php
-public function store(Request $request, Project $project)
-{
-    try {
-        $task = Task::create([
-            'project_id' => $project->id,
-            'title' => $request->title,
-            'status' => 'todo',
-            'created_by' => $request->user()->id,
-        ]);
+try {
+    $task->update(['status' => 'done']);
+    return new TaskResource($task);
+} catch (Exception $e) {
+    // 追加情報を含むログ
+    Log::error('タスク更新エラー', [
+        'task_id' => $task->id,
+        'error' => $e->getMessage(),
+    ]);
 
-        return new TaskResource($task);
-
-    } catch (Exception $e) {
-        Log::error('タスク作成エラー', [
-            'project_id' => $project->id,
-            'user_id' => $request->user()->id,
-            'error' => $e->getMessage(),
-        ]);
-
-        return response()->json([
-            'message' => 'タスクの作成中にエラーが発生しました',
-        ], 500);
-    }
+    // カスタムメッセージ
+    return response()->json([
+        'message' => 'タスクの更新に失敗しました',
+    ], 500);
 }
 ```
 
@@ -677,10 +934,62 @@ public function store(Request $request, Project $project)
 
 | 場合                    | 回答            | 理由                                           |
 | ----------------------- | --------------- | ---------------------------------------------- |
-| 1. findOrFail()         | 書かなくても OK | Laravel が自動で 404 を返す                    |
-| 2. 外部 API             | **書くべき**    | 失敗時の対応が必要、タイムアウトなど           |
-| 3. FormRequest          | 書かなくても OK | Laravel が自動で 422 を返す                    |
+| 1. findOrFail()         | 書かなくても OK | Laravel が自動で 404 を返す＋ログも記録        |
+| 2. 外部 API             | **書くべき**    | 失敗時の対応が必要、リトライや代替処理         |
+| 3. FormRequest          | 書かなくても OK | Laravel が自動で 422 を返す＋ログも記録        |
 | 4. ファイルアップロード | **書くべき**    | ディスク容量不足など予期しないエラーがありうる |
+
+</details>
+
+---
+
+### Q4：以下のコードの問題点を指摘してください
+
+```php
+try {
+    $task = Task::findOrFail($id);
+    $task->update(['status' => 'done']);
+} catch (Exception $e) {
+    return response()->json(['message' => '一般エラー'], 500);
+} catch (QueryException $e) {
+    Mail::to('admin@example.com')->send(new DatabaseErrorAlert($e));
+    return response()->json(['message' => 'DBエラー'], 500);
+} catch (ModelNotFoundException $e) {
+    return response()->json(['message' => 'タスクが見つかりません'], 404);
+}
+```
+
+<details>
+<summary>📖 答えを見る</summary>
+
+**問題点：** `catch (Exception $e)` が一番上にあるため、`QueryException` と `ModelNotFoundException` の catch には**絶対に到達しない**
+
+**理由：**
+
+-   `Exception` はすべての例外の親クラス
+-   一番上に書くと、すべての例外がここで捕まってしまう
+-   下の catch は実行されない「デッドコード」になる
+
+**正しい順番：**
+
+```php
+try {
+    $task = Task::findOrFail($id);
+    $task->update(['status' => 'done']);
+} catch (ModelNotFoundException $e) {
+    // ← 具体的な例外を先に
+    return response()->json(['message' => 'タスクが見つかりません'], 404);
+} catch (QueryException $e) {
+    // ← 具体的な例外を先に
+    Mail::to('admin@example.com')->send(new DatabaseErrorAlert($e));
+    return response()->json(['message' => 'DBエラー'], 500);
+} catch (Exception $e) {
+    // ← 「その他すべて」は最後に
+    return response()->json(['message' => '一般エラー'], 500);
+}
+```
+
+**覚え方：** 「具体的 → 汎用的」の順番で書く！
 
 </details>
 
@@ -695,7 +1004,9 @@ public function store(Request $request, Project $project)
 │                                                             │
 │   try-catch は「自分で制御したい時」に使う                  │
 │                                                             │
-│   基本は Laravel に任せてOK                                 │
+│   基本は Laravel に任せてOK（ログも自動）                   │
+│                                                             │
+│   書くなら「意味のある処理」を書く！                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -704,7 +1015,7 @@ public function store(Request $request, Project $project)
 
 **👩‍💻 ユーザー：** 「ベートーヴェンはそんなこと言ってないと思います...」
 
-**🐘 ガネーシャ：** 「まぁええやんけ！大事なのは『例外の仕組みを理解すること』や。次回は、この try-catch を使いすぎるとどうなるか教えたるで」
+**🐘 ガネーシャ：** 「まぁええやんけ！大事なのは『例外の仕組みを理解すること』と『意味のある try-catch を書くこと』や。次回は、この try-catch を使いすぎるとどうなるか教えたるで」
 
 **👩‍💻 ユーザー：** 「使いすぎ？」
 
