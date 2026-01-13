@@ -17,6 +17,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  * - ApiResource でレスポンスを整形
  * - ビジネスルールチェック（409 Conflict）を実装
  *   - 完了済みタスクは編集不可
+ *   - 完了済みタスクは削除不可
  *   - タスクの状態遷移ルール（todo → doing → done）
  */
 class TaskController extends ApiController
@@ -76,6 +77,14 @@ class TaskController extends ApiController
     public function destroy(Task $task): JsonResponse
     {
         // ✅ Route Model Bindingで自動的に404チェック
+
+        // ビジネスルールチェック：完了済みタスクは削除できない
+        if ($task->status === 'done') {
+            return response()->json([
+                'message' => '完了済みのタスクは削除できません'
+            ], 409);
+        }
+
         $task->delete();
         return response()->json(['message' => 'タスクを削除しました']);
     }
