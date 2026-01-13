@@ -11,10 +11,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
- * Lesson6-3: After版 - Laravelの機能を活用したスッキリしたコード
+ * Lesson6-3: After版 + ビジネスルールチェック
  * - Route Model Binding で404チェックを自動化
  * - FormRequest でバリデーションを分離
  * - ApiResource でレスポンスを整形
+ * - ビジネスルールチェック（409 Conflict）を実装
+ *   - 完了済みタスクは編集不可
+ *   - タスクの状態遷移ルール（todo → doing → done）
  */
 class TaskController extends ApiController
 {
@@ -51,10 +54,18 @@ class TaskController extends ApiController
     /**
      * タスク更新
      */
-    public function update(UpdateTaskRequest $request, Task $task): TaskResource
+    public function update(UpdateTaskRequest $request, Task $task): TaskResource|JsonResponse
     {
         // ✅ FormRequestで自動的にバリデーション済み
         // ✅ Route Model Bindingで$taskは存在保証済み
+
+        // ビジネスルールチェック：完了済みは編集不可
+        if ($task->status === 'done') {
+            return response()->json([
+                'message' => '完了済みのタスクは編集できません'
+            ], 409);
+        }
+
         $task->update($request->validated());
         return new TaskResource($task);
     }
@@ -72,20 +83,40 @@ class TaskController extends ApiController
     /**
      * タスクを開始（todo → doing）
      */
-    public function start(Task $task): TaskResource
+    public function start(Task $task): TaskResource|JsonResponse
     {
         // ✅ Route Model Bindingで自動的に404チェック
-        $task->update(['status' => 'doing']);
+
+        // ビジネスルールチェック：todoからのみ開始可能
+        if ($task->status !== 'todo') {
+            return response()->json([
+                'message' => '未着手のタスクのみ開始できます'
+            ], 409);
+        }
+
+        $task->status = 'doing';
+        $task->save();
+
         return new TaskResource($task);
     }
 
     /**
      * タスクを完了（doing → done）
      */
-    public function complete(Task $task): TaskResource
+    public function complete(Task $task): TaskResource|JsonResponse
     {
         // ✅ Route Model Bindingで自動的に404チェック
-        $task->update(['status' => 'done']);
+
+        // ビジネスルールチェック：doingからのみ完了可能
+        if ($task->status !== 'doing') {
+            return response()->json([
+                'message' => '作業中のタスクのみ完了できます'
+            ], 409);
+        }
+
+        $task->status = 'done';
+        $task->save();
+
         return new TaskResource($task);
     }
 }
