@@ -41,7 +41,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/tasks/{task}', [TaskController::class, 'update']);
     Route::delete('/tasks/{task}', [TaskController::class, 'destroy']);
     Route::post('/tasks/{task}/start', [TaskController::class, 'start']);
-    Route::post('/tasks/{id}/complete', [TaskController::class, 'complete']);
+    Route::post('/tasks/{task}/complete', [TaskController::class, 'complete']);
 
     // Members（✅ Route Model Binding使用）
     Route::get('/projects/{project}/members', [ProjectMemberController::class, 'index']);

@@ -6,6 +6,9 @@ use App\Models\Task;
 use App\Models\User;
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
+use Exception;
+use Illuminate\Support\Facades\Log;
+use App\Http\Resources\TaskResource;
 
 /**
  * タスク完了UseCase（doing → done）
@@ -15,64 +18,48 @@ use App\Exceptions\ConflictException;
  * - 複数ドメインにまたがる共通ルールは Rules に委譲する
  * - このUseCase固有の条件は UseCase 内に閉じる（必要に応じて private に隔離）
  */
+// CompleteTaskUseCase.php
 class CompleteTaskUseCase
 {
     public function __construct(
         private ProjectRules $projectRules,
     ) {}
 
-    /**
-     * タスク完了の流れを組み立てる
-     *
-     * @param Task $task タスク
-     * @param User $user ユーザー
-     * @return Task
-     */
-    public function execute(Task $task, User $user): Task
+    public function execute(Task $task, User $user)
     {
-        // ========================================
-        // 1. 検証（ビジネスルール / 制約）
-        // ========================================
+        try {
+            // 権限チェック（Serviceに委譲）
+            $result = $this->projectRules->ensureMember($task->project, $user);
+            if ($result !== true) {
+                return $result;  // response を返す
+            }
 
-        // 横断ルール：このプロジェクトを操作できるメンバーか？
-        // （Project×Membership など、複数UseCaseで再利用される前提ルール）
-        $this->projectRules->ensureMember($task->project, $user);
+            // 状態チェック（privateメソッド）
+            $result = $this->ensureCanComplete($task);
+            if ($result !== true) {
+                return $result;  // response を返す
+            }
 
-        // UseCase固有ルール：このタスクは「完了」に遷移できる状態か？
-        //（現時点では条件が少なくても、状態遷移は条件が増えやすいので隔離しておく）
-        $this->ensureCanComplete($task);
+            $task->update(['status' => 'done']);
+            $task->load('createdBy');
 
-        // ========================================
-        // 2. 状態変更（UseCaseの責務）
-        // ========================================
-        $task->status = 'done';
-        $task->save();
-
-        // ========================================
-        // 3. 表示に必要なデータをロード（I/O都合）
-        // ========================================
-        $task->load('createdBy');
-
-        return $task;
+            return new TaskResource($task);
+        } catch (Exception $e) {
+            Log::error('タスク完了エラー', ['error' => $e->getMessage()]);
+            return response()->json(
+                ['message' => 'エラーが発生しました'],
+                $e->getCode() ?: 500
+            );
+        }
     }
 
-    /**
-     * タスクが「完了」に遷移可能か検証する（UseCase固有の制約）
-     *
-     * 置き場所の意図：
-     * - これは「タスク完了」というシナリオに閉じた条件（現時点では他UseCaseで使わない想定）
-     * - execute() の流れ（検証→更新）を読みやすく保つため、検証ロジックを private に隔離する
-     * - private だからテスト不要、ではなく「UseCaseテストで完了条件をまとめて検証する」方針
-     *   （将来この条件が複数UseCaseに広がったら Rules へ昇格を検討する）
-     *
-     * @param Task $task タスク
-     * @return void
-     * @throws ConflictException
-     */
-    private function ensureCanComplete(Task $task): void
+    private function ensureCanComplete(Task $task)
     {
         if (!$task->isDoing()) {
-            throw new ConflictException('作業中のタスクのみ完了できます');
+            return response()->json([
+                'message' => '作業中のタスクのみ完了できます',
+            ], 409);
         }
+        return true;
     }
 }

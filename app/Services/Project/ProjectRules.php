@@ -78,11 +78,18 @@ class ProjectRules
      * @return void
      * @throws AuthorizationException
      */
-    public function ensureMember(Project $project, User $user): void
+    public function ensureMember(Project $project, User $user)
     {
-        if (!$this->isMember($project, $user)) {
-            throw new AuthorizationException('このプロジェクトにアクセスする権限がありません');
+        $isMember = $project->users()
+            ->where('users.id', $user->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
         }
+        return true;
     }
 
     /**
