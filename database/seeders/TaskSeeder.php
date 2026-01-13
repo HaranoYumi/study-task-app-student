@@ -20,7 +20,7 @@ class TaskSeeder extends Seeder
 
         $project1 = Project::where('name', 'ECサイトリニューアルプロジェクト')->first();
 
-        // ECサイトプロジェクトのタスク（7件）
+        // ECサイトプロジェクトのタスク（5件）
 
         // オーナーが完了したタスク
         Task::create([
@@ -84,3 +84,4 @@ class TaskSeeder extends Seeder
         ]);
     }
 }
+
