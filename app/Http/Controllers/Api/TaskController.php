@@ -2,189 +2,87 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use App\Http\Requests\Task\StoreTaskRequest;
-use App\Http\Requests\Task\UpdateTaskRequest;
-
 
 /**
- * Lesson6-2用：敢えて冗長なコード（Before版）
- * Laravelのデフォルトエラーハンドリングを学ぶための教材コード
+ * Lesson6-3: After版 - Laravelの機能を活用したスッキリしたコード
+ * - Route Model Binding で404チェックを自動化
+ * - FormRequest でバリデーションを分離
  */
 class TaskController extends ApiController
 {
     /**
      * プロジェクトのタスク一覧を取得
      */
-    public function index(Request $request, $projectId): JsonResponse
+    public function index(Project $project): JsonResponse
     {
-        // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
-        $project = Project::find($projectId);
-
-        if (!$project) {
-            return response()->json([
-                'message' => 'プロジェクトが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         $tasks = $project->tasks;
-
         return response()->json($tasks);
     }
 
     /**
      * タスク作成
      */
-    public function store(Request $request, $projectId): JsonResponse
+    public function store(StoreTaskRequest $request, Project $project): JsonResponse
     {
-        // ❌ 冗長：手動でプロジェクトの存在チェック
-        $project = Project::find($projectId);
-
-        if (!$project) {
-            return response()->json([
-                'message' => 'プロジェクトが見つかりません'
-            ], 404);
-        }
-
-        // ❌ 冗長：FormRequestを使わず、手動でバリデーション
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|max:255',
-            'description' => 'nullable|string',
-            'status' => 'nullable|in:todo,doing,done',
-            'due_date' => 'nullable|date',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'バリデーションエラー',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $task = $project->tasks()->create($request->all());
-
+        // ✅ FormRequestで自動的にバリデーション済み
+        // ✅ Route Model Bindingで$projectは存在保証済み
+        $task = $project->tasks()->create($request->validated());
         return response()->json($task, 201);
     }
 
     /**
      * タスク詳細を取得
      */
-    public function show($id): JsonResponse
+    public function show(Task $task): JsonResponse
     {
-        // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
-        $task = Task::find($id);
-        // $task = Task::findOrFail($id);
-
-        if (!$task) {
-            return response()->json([
-                'message' => 'タスクが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         return response()->json($task);
     }
 
     /**
-     * タスク詳細を取得
-     */
-    // public function show(Task $task)  // ← Taskモデルを直接受け取る！
-    // {
-    //     // 存在しないIDの場合、ここに来る前に自動で404が返る！
-    //     return response()->json($task);
-    // }
-
-    /**
      * タスク更新
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
-        // ❌ 冗長：手動で存在チェック
-        $task = Task::find($id);
-
-        if (!$task) {
-            return response()->json([
-                'message' => 'タスクが見つかりません'
-            ], 404);
-        }
-
-        // ❌ 冗長：手動でバリデーション
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|max:255',
-            'description' => 'nullable|string',
-            'status' => 'nullable|in:todo,doing,done',
-            'due_date' => 'nullable|date',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'バリデーションエラー',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $task->update($request->all());
-
+        // ✅ FormRequestで自動的にバリデーション済み
+        // ✅ Route Model Bindingで$taskは存在保証済み
+        $task->update($request->validated());
         return response()->json($task);
     }
 
     /**
      * タスク削除
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Task $task): JsonResponse
     {
-        // ❌ 冗長：手動で存在チェック
-        $task = Task::find($id);
-
-        if (!$task) {
-            return response()->json([
-                'message' => 'タスクが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         $task->delete();
-
         return response()->json(['message' => 'タスクを削除しました']);
     }
 
     /**
      * タスクを開始（todo → doing）
      */
-    public function start($id): JsonResponse
+    public function start(Task $task): JsonResponse
     {
-        // ❌ 冗長：手動で存在チェック
-        $task = Task::find($id);
-
-        if (!$task) {
-            return response()->json([
-                'message' => 'タスクが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         $task->update(['status' => 'doing']);
-
         return response()->json($task);
     }
 
     /**
      * タスクを完了（doing → done）
      */
-    public function complete($id): JsonResponse
+    public function complete(Task $task): JsonResponse
     {
-        // ❌ 冗長：手動で存在チェック
-        $task = Task::find($id);
-
-        if (!$task) {
-            return response()->json([
-                'message' => 'タスクが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         $task->update(['status' => 'done']);
-
         return response()->json($task);
     }
 }

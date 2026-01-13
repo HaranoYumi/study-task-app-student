@@ -2,115 +2,64 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\Project\StoreProjectRequest;
+use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 /**
- * Lesson6-2用：敢えて冗長なコード（Before版）
- * Laravelのデフォルトエラーハンドリングを学ぶための教材コード
+ * Lesson6-3: After版 - Laravelの機能を活用したスッキリしたコード
+ * - Route Model Binding で404チェックを自動化
+ * - FormRequest でバリデーションを分離
  */
 class ProjectController extends ApiController
 {
     /**
-     * 自分が所属しているプロジェクト一覧を返す
+     * プロジェクト一覧を取得
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
         $projects = Project::all();
-
         return response()->json($projects);
     }
 
     /**
      * プロジェクト新規作成
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreProjectRequest $request): JsonResponse
     {
-        // ❌ 冗長：FormRequestを使わず、手動でバリデーション
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|max:255',
-            'description' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'バリデーションエラー',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $project = Project::create($request->all());
-
+        // ✅ FormRequestで自動的にバリデーション済み
+        $project = Project::create($request->validated());
         return response()->json($project, 201);
     }
 
     /**
      * プロジェクト詳細を返す
      */
-    public function show($id): JsonResponse
+    public function show(Project $project): JsonResponse
     {
-        // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
-        $project = Project::find($id);
-
-        if (!$project) {
-            return response()->json([
-                'message' => 'プロジェクトが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         return response()->json($project);
     }
 
     /**
      * プロジェクト更新
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(UpdateProjectRequest $request, Project $project): JsonResponse
     {
-        // ❌ 冗長：手動で存在チェック
-        $project = Project::find($id);
-
-        if (!$project) {
-            return response()->json([
-                'message' => 'プロジェクトが見つかりません'
-            ], 404);
-        }
-
-        // ❌ 冗長：手動でバリデーション
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|max:255',
-            'description' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'バリデーションエラー',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $project->update($request->all());
-
+        // ✅ FormRequestで自動的にバリデーション済み
+        // ✅ Route Model Bindingで$projectは存在保証済み
+        $project->update($request->validated());
         return response()->json($project);
     }
 
     /**
      * プロジェクト削除
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Project $project): JsonResponse
     {
-        // ❌ 冗長：手動で存在チェック
-        $project = Project::find($id);
-
-        if (!$project) {
-            return response()->json([
-                'message' => 'プロジェクトが見つかりません'
-            ], 404);
-        }
-
+        // ✅ Route Model Bindingで自動的に404チェック
         $project->delete();
-
         return response()->json(['message' => 'プロジェクトを削除しました']);
     }
 }
