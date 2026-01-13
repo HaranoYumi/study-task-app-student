@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
-use App\Http\Requests\Task\StoreTaskRequest;
-use App\Http\Requests\Task\UpdateTaskRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Validator;
 
 class TaskController extends ApiController
 {
@@ -102,20 +101,14 @@ class TaskController extends ApiController
             ], 403);
         }
 
-        $validator = Validator::make($request->all(), [
-            'title' => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
-            'status' => 'sometimes|in:todo,doing,done',
-        ]);
-
-        if ($validator->fails()) {
+        // 409チェック：完了済みタスクは編集不可
+        if ($task->status === 'done') {
             return response()->json([
-                'message' => 'バリデーションエラー',
-                'errors' => $validator->errors(),
-            ], 422);
+                'message' => '完了済みのタスクは編集できません'
+            ], 409);
         }
 
-        $task->update($request->only(['title', 'description', 'status']));
+        $task->update($request->validated());
         $task->load('createdBy');
 
         return (new TaskResource($task))
@@ -137,6 +130,13 @@ class TaskController extends ApiController
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません',
             ], 403);
+        }
+
+        // 409チェック：完了済みタスクは削除不可
+        if ($task->status === 'done') {
+            return response()->json([
+                'message' => '完了済みのタスクは削除できません'
+            ], 409);
         }
 
         $task->delete();

@@ -56,7 +56,7 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Project::class, 'memberships')
             ->using(Membership::class)
-            ->withPivot('id', 'role')
+            ->withPivot('role')
             ->withTimestamps();
     }
 

@@ -7,65 +7,113 @@ use App\Http\Requests\Project\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
- * Lesson6-3: After版 - Laravelの機能を活用したスッキリしたコード
- * - Route Model Binding で404チェックを自動化
- * - FormRequest でバリデーションを分離
- * - ApiResource でレスポンスを整形
+ * Lesson6-3: After版
+ * - 自分が所属しているプロジェクトのみ取得
+ * - 403チェック: プロジェクトメンバーのみアクセス可能
+ * - FormRequestを使用
  */
 class ProjectController extends ApiController
 {
     /**
-     * プロジェクト一覧を取得（ログインユーザーが所属しているもののみ）
+     * 自分が所属しているプロジェクト一覧を返す
      */
-    public function index(): AnonymousResourceCollection
+    public function index(Request $request): AnonymousResourceCollection
     {
-        // ログインユーザーが所属しているプロジェクトのみ取得（usersリレーションも一緒に取得）
-        $projects = auth()->user()->projects()->with('users')->get();
+        $projects = $request->user()
+            ->projects()
+            ->with('users')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return ProjectResource::collection($projects);
     }
 
     /**
      * プロジェクト新規作成
      */
-    public function store(StoreProjectRequest $request): ProjectResource
+    public function store(StoreProjectRequest $request): JsonResponse
     {
-        // ✅ FormRequestで自動的にバリデーション済み
         $project = Project::create($request->validated());
-        return new ProjectResource($project);
+
+        // 作成者をオーナーとして追加
+        $project->users()->attach($request->user()->id, [
+            'role' => 'project_owner',
+        ]);
+
+        return (new ProjectResource($project))
+            ->additional(['message' => 'プロジェクトを作成しました'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
      * プロジェクト詳細を返す
      */
-    public function show(Project $project): ProjectResource
+    public function show(Request $request, Project $project): ProjectResource|JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
-        // タスクとユーザーをロード
-        $project->load(['tasks.createdBy', 'users']);
+        // 自分が所属しているかチェック
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
+        $project->load(['users', 'tasks.createdBy']);
+
         return new ProjectResource($project);
     }
 
     /**
      * プロジェクト更新
      */
-    public function update(UpdateProjectRequest $request, Project $project): ProjectResource
+    public function update(UpdateProjectRequest $request, Project $project): ProjectResource|JsonResponse
     {
-        // ✅ FormRequestで自動的にバリデーション済み
-        // ✅ Route Model Bindingで$projectは存在保証済み
+        // 自分がオーナーまたは管理者かチェック
+        $myUser = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->first();
+
+        if (!$myUser || !in_array($myUser->pivot->role, ['project_owner', 'project_admin'])) {
+            return response()->json([
+                'message' => 'プロジェクトを編集する権限がありません',
+            ], 403);
+        }
+
         $project->update($request->validated());
-        return new ProjectResource($project);
+        $project->load(['users', 'tasks.createdBy']);
+
+        return (new ProjectResource($project))
+            ->additional(['message' => 'プロジェクトを更新しました']);
     }
 
     /**
      * プロジェクト削除
      */
-    public function destroy(Project $project): JsonResponse
+    public function destroy(Request $request, Project $project): JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
+        // 自分がオーナーかチェック
+        $myUser = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->first();
+
+        if (!$myUser || $myUser->pivot->role !== 'project_owner') {
+            return response()->json([
+                'message' => 'プロジェクトを削除する権限がありません（オーナーのみ）',
+            ], 403);
+        }
+
         $project->delete();
-        return response()->json(['message' => 'プロジェクトを削除しました']);
+
+        return response()->json([
+            'message' => 'プロジェクトを削除しました',
+        ]);
     }
 }
