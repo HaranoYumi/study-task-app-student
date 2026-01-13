@@ -154,27 +154,6 @@ public function destroy(Task $task)
 ・編集しようとしたら 409 Conflict を返す
 ```
 
-#### 📍 Postman で試すエンドポイント
-
-```http
-PUT http://localhost/api/tasks/1
-Authorization: Bearer {your_token}
-Content-Type: application/json
-
-{
-  "title": "タイトル変更したい"
-}
-```
-
-**使用するダミーデータ:**
-
--   **タスク ID: 1** → 「開発環境のセットアップ」（status: done）
--   **ログインユーザー:** owner@example.com
-
-**期待される結果:** 409 Conflict
-
----
-
 #### 実装
 
 ```php
@@ -194,13 +173,7 @@ public function update(UpdateTaskRequest $request, Task $task)
 }
 ```
 
-**👩‍💻 ユーザー：** 「あれ、思ったよりシンプルですね」
-
-**🐘 ガネーシャ：** 「せや。if 文で条件チェックして、ダメなら 409 を返す。それだけや」
-
-#### テストしてみよう
-
-**🧪 Postman で試す:**
+**📍 Postmanで試すエンドポイント**
 
 ```http
 PUT http://localhost/api/tasks/1
@@ -212,19 +185,21 @@ Content-Type: application/json
 }
 ```
 
-**📋 使用するダミーデータ:**
+**使用するダミーデータ:**
+- **タスクID: 1** → 「開発環境のセットアップ」（status: done）
+- **ログインユーザー:** owner@example.com
 
--   **タスク ID: 1** → 「開発環境のセットアップ」（status: done）
--   **ログインユーザー:** owner@example.com（プロジェクトメンバー）
-
-**✅ 期待される結果:**
+**期待される結果:** 409 Conflict
 
 ```json
-→ 409 Conflict
 {
   "message": "完了済みのタスクは編集できません"
 }
 ```
+
+**👩‍💻 ユーザー：** 「あれ、思ったよりシンプルですね」
+
+**🐘 ガネーシャ：** 「せや。if 文で条件チェックして、ダメなら 409 を返す。それだけや」
 
 ---
 
@@ -238,22 +213,6 @@ Content-Type: application/json
 ・タスクのステータスが「done」の場合、削除できない
 ・削除しようとしたら 409 Conflict を返す
 ```
-
-#### 📍 Postman で試すエンドポイント
-
-```http
-DELETE http://localhost/api/tasks/1
-Authorization: Bearer {your_token}
-```
-
-**使用するダミーデータ:**
-
--   **タスク ID: 1** → 「開発環境のセットアップ」（status: done）
--   **ログインユーザー:** owner@example.com
-
-**期待される結果:** 409 Conflict
-
----
 
 #### 実装
 
@@ -274,32 +233,28 @@ public function destroy(Task $task)
 }
 ```
 
-**👩‍💻 ユーザー：** 「これも同じパターンですね！」
-
-**🐘 ガネーシャ：** 「せや。完了したタスクは履歴として残しとくんや」
-
-#### テストしてみよう
-
-**🧪 Postman で試す:**
+**📍 Postmanで試すエンドポイント**
 
 ```http
 DELETE http://localhost/api/tasks/1
 Authorization: Bearer {your_token}
 ```
 
-**📋 使用するダミーデータ:**
+**使用するダミーデータ:**
+- **タスクID: 1** → 「開発環境のセットアップ」（status: done）
+- **ログインユーザー:** owner@example.com
 
--   **タスク ID: 1** → 「開発環境のセットアップ」（status: done）
--   **ログインユーザー:** owner@example.com（プロジェクトメンバー）
-
-**✅ 期待される結果:**
+**期待される結果:** 409 Conflict
 
 ```json
-→ 409 Conflict
 {
   "message": "完了済みのタスクは削除できません"
 }
 ```
+
+**👩‍💻 ユーザー：** 「これも同じパターンですね！」
+
+**🐘 ガネーシャ：** 「せや。完了したタスクは履歴として残しとくんや」
 
 ---
 
@@ -334,40 +289,6 @@ Authorization: Bearer {your_token}
 └─────────────────────────────────────────────────────────────┘
 ```
 
-#### 📍 Postman で試すエンドポイント（start）
-
-**正常系（todo → doing）:**
-
-```http
-POST http://localhost/api/tasks/6/start
-Authorization: Bearer {your_token}
-```
-
--   **タスク ID: 6** → 「商品一覧ページの実装」（status: todo）
--   **期待結果:** 200 OK、status が doing に変わる
-
-**異常系 1（doing → doing：再開始）:**
-
-```http
-POST http://localhost/api/tasks/3/start
-Authorization: Bearer {your_token}
-```
-
--   **タスク ID: 3** → 「認証機能の実装」（status: doing）
--   **期待結果:** 409 Conflict
-
-**異常系 2（done → doing：完了済みを開始）:**
-
-```http
-POST http://localhost/api/tasks/2/start
-Authorization: Bearer {your_token}
-```
-
--   **タスク ID: 2** → 「データベース設計」（status: done）
--   **期待結果:** 409 Conflict
-
----
-
 #### 実装：タスク開始（todo → doing）
 
 ```php
@@ -393,27 +314,23 @@ public function start(Task $task)
 }
 ```
 
-#### 📍 Postman で試すエンドポイント（complete）
+**📍 Postmanで試すエンドポイント（異常系）**
 
-**正常系（doing → done）:**
-
+**ケース1：作業中のタスクを再開始しようとする**
 ```http
-POST http://localhost/api/tasks/5/complete
+POST http://localhost/api/tasks/3/start
 Authorization: Bearer {your_token}
 ```
+- **タスクID: 3** → 「認証機能の実装」（status: doing）
+- **期待結果:** 409 Conflict「未着手のタスクのみ開始できます」
 
--   **タスク ID: 5** → 「UI コンポーネントの開発」（status: doing）
--   **期待結果:** 200 OK、status が done に変わる
-
-**異常系（todo → done：未着手を直接完了）:**
-
+**ケース2：完了済みタスクを開始しようとする**
 ```http
-POST http://localhost/api/tasks/4/complete
+POST http://localhost/api/tasks/2/start
 Authorization: Bearer {your_token}
 ```
-
--   **タスク ID: 4** → 「API ドキュメントの作成」（status: todo）
--   **期待結果:** 409 Conflict
+- **タスクID: 2** → 「データベース設計」（status: done）
+- **期待結果:** 409 Conflict「未着手のタスクのみ開始できます」
 
 ---
 
@@ -440,6 +357,18 @@ public function complete(Task $task)
 }
 ```
 
+**📍 Postmanで試すエンドポイント（異常系）**
+
+**ケース：未着手のタスクをいきなり完了しようとする**
+```http
+POST http://localhost/api/tasks/4/complete
+Authorization: Bearer {your_token}
+```
+- **タスクID: 4** → 「APIドキュメントの作成」（status: todo）
+- **期待結果:** 409 Conflict「作業中のタスクのみ完了できます」
+
+---
+
 **👩‍💻 ユーザー：** 「なるほど！それぞれのメソッドで『今のステータス』をチェックするんですね」
 
 **🐘 ガネーシャ：** 「せや。状態遷移のルールは、こうやって一つずつチェックするんや」
@@ -461,124 +390,34 @@ Route::middleware('auth:sanctum')->group(function () {
 
 #### テストしてみよう
 
-**🧪 ケース 1：正常に開始できる（todo → doing）**
+```bash
+# ケース1：正常に開始できる（todo → doing）
+POST /api/tasks/1/start
+（タスク1のステータスが「todo」の場合）
 
-```http
-POST http://localhost/api/tasks/6/start
-Authorization: Bearer {your_token}
-```
-
-**📋 使用するダミーデータ:**
-
--   **タスク ID: 6** → 「商品一覧ページの実装」（status: todo）
--   **ログインユーザー:** owner@example.com
-
-**✅ 期待される結果:**
-
-```json
 → 200 OK
 {
-  "data": {
-    "id": 6,
-    "title": "商品一覧ページの実装",
-    "status": "doing"  ← 変わった！
-  }
+  "id": 1,
+  "title": "買い物に行く",
+  "status": "doing"  ← 変わった！
 }
-```
 
----
+# ケース2：すでに作業中のタスクを開始しようとする
+POST /api/tasks/1/start
+（タスク1のステータスが「doing」の場合）
 
-**🧪 ケース 2：すでに作業中のタスクを開始しようとする**
-
-```http
-POST http://localhost/api/tasks/3/start
-Authorization: Bearer {your_token}
-```
-
-**📋 使用するダミーデータ:**
-
--   **タスク ID: 3** → 「認証機能の実装」（status: doing）
--   **ログインユーザー:** admin@example.com
-
-**✅ 期待される結果:**
-
-```json
 → 409 Conflict
 {
   "message": "未着手のタスクのみ開始できます"
 }
-```
 
----
+# ケース3：未着手のタスクをいきなり完了しようとする
+POST /api/tasks/2/complete
+（タスク2のステータスが「todo」の場合）
 
-**🧪 ケース 3：完了済みタスクを開始しようとする**
-
-```http
-POST http://localhost/api/tasks/2/start
-Authorization: Bearer {your_token}
-```
-
-**📋 使用するダミーデータ:**
-
--   **タスク ID: 2** → 「データベース設計」（status: done）
--   **ログインユーザー:** admin@example.com
-
-**✅ 期待される結果:**
-
-```json
-→ 409 Conflict
-{
-  "message": "未着手のタスクのみ開始できます"
-}
-```
-
----
-
-**🧪 ケース 4：未着手のタスクをいきなり完了しようとする**
-
-```http
-POST http://localhost/api/tasks/4/complete
-Authorization: Bearer {your_token}
-```
-
-**📋 使用するダミーデータ:**
-
--   **タスク ID: 4** → 「API ドキュメントの作成」（status: todo）
--   **ログインユーザー:** member@example.com
-
-**✅ 期待される結果:**
-
-```json
 → 409 Conflict
 {
   "message": "作業中のタスクのみ完了できます"
-}
-```
-
----
-
-**🧪 ケース 5：正常に完了できる（doing → done）**
-
-```http
-POST http://localhost/api/tasks/5/complete
-Authorization: Bearer {your_token}
-```
-
-**📋 使用するダミーデータ:**
-
--   **タスク ID: 5** → 「UI コンポーネントの開発」（status: doing）
--   **ログインユーザー:** member@example.com
-
-**✅ 期待される結果:**
-
-```json
-→ 200 OK
-{
-  "data": {
-    "id": 5,
-    "title": "UIコンポーネントの開発",
-    "status": "done"  ← 変わった！
-  }
 }
 ```
 
@@ -640,14 +479,14 @@ public function destroy(Membership $membership)
 
 **🐘 ガネーシャ：** 「ここまでの 409 パターンをまとめるで」
 
-| パターン             | チェック内容                | メッセージ例                     | Postman エンドポイント       |
-| -------------------- | --------------------------- | -------------------------------- | ---------------------------- |
-| 状態チェック（編集） | `$task->status === 'done'`  | 完了済みのタスクは編集できません | `PUT /api/tasks/1`           |
-| 状態チェック（削除） | `$task->status === 'done'`  | 完了済みのタスクは削除できません | `DELETE /api/tasks/1`        |
-| 状態遷移（開始）     | `$task->status !== 'todo'`  | 未着手のタスクのみ開始できます   | `POST /api/tasks/3/start`    |
-| 状態遷移（完了）     | `$task->status !== 'doing'` | 作業中のタスクのみ完了できます   | `POST /api/tasks/4/complete` |
-| 数量チェック         | `$ownerCount <= 1`          | 最低 1 人のオーナーが必要です    | -                            |
-| 重複チェック         | `既にメンバー`              | このユーザーは既にメンバーです   | -                            |
+| パターン     | チェック内容               | メッセージ例                     | Postmanエンドポイント |
+| ------------ | -------------------------- | -------------------------------- | -------------------- |
+| 状態チェック（編集） | `$task->status === 'done'` | 完了済みのタスクは編集できません | `PUT /api/tasks/1` |
+| 状態チェック（削除） | `$task->status === 'done'` | 完了済みのタスクは削除できません | `DELETE /api/tasks/1` |
+| 状態遷移（開始） | `$task->status !== 'todo'` | 未着手のタスクのみ開始できます   | `POST /api/tasks/3/start` |
+| 状態遷移（完了） | `$task->status !== 'doing'` | 作業中のタスクのみ完了できます | `POST /api/tasks/4/complete` |
+| 数量チェック | `$ownerCount <= 1`         | 最低 1 人のオーナーが必要です    | - |
+| 重複チェック | `既にメンバー`             | このユーザーは既にメンバーです   | - |
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1398,10 +1237,10 @@ public function complete(Task $task)
 
 ### Lesson6 シリーズまとめ
 
-| Lesson | 内容                                       |
-| ------ | ------------------------------------------ |
-| 6-1    | ステータスコードとは何か                   |
-| 6-2    | Laravel が自動でやってくれること           |
+| Lesson | 内容                             |
+| ------ | -------------------------------- |
+| 6-1    | ステータスコードとは何か         |
+| 6-2    | Laravel が自動でやってくれること |
 | 6-3    | ビジネスルールのエラーハンドリング（今回） |
 
 ### 次に学ぶといいこと
