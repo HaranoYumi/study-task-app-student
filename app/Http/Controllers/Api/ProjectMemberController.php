@@ -2,33 +2,35 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Resources\ProjectMemberResource;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 /**
  * Lesson6-3: After版 - Laravelの機能を活用したスッキリしたコード
  * - Route Model Binding で404チェックを自動化
  * - シンプルなバリデーション
+ * - ApiResource でレスポンスを整形
  */
 class ProjectMemberController extends ApiController
 {
     /**
      * プロジェクトのメンバー一覧を取得
      */
-    public function index(Project $project): JsonResponse
+    public function index(Project $project): AnonymousResourceCollection
     {
         // ✅ Route Model Bindingで自動的に404チェック
         $members = $project->members;
-        return response()->json($members);
+        return ProjectMemberResource::collection($members);
     }
 
     /**
      * プロジェクトにメンバーを追加
      */
-    public function store(Request $request, Project $project): JsonResponse
+    public function store(Request $request, Project $project): ProjectMemberResource
     {
         // ✅ Route Model Bindingで$projectは存在保証済み
         
@@ -43,7 +45,10 @@ class ProjectMemberController extends ApiController
         // メンバーを追加
         $project->members()->attach($user->id);
 
-        return response()->json($user, 201);
+        // 追加したメンバーを再取得（pivot情報を含む）
+        $member = $project->members()->where('users.id', $user->id)->first();
+
+        return new ProjectMemberResource($member);
     }
 
     /**
