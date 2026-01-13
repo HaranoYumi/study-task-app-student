@@ -34,9 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
 
         // API例外ハンドラーを登録
-        $apiHandler = new ApiExceptionHandler();
+        // $apiHandler = new ApiExceptionHandler();
 
-        $exceptions->render(function (\Throwable $e, Request $request) use ($apiHandler) {
-            return $apiHandler->handle($e, $request);
-        });
+        // $exceptions->render(function (\Throwable $e, Request $request) use ($apiHandler) {
+        //     return $apiHandler->handle($e, $request);
+        // });
     })->create();

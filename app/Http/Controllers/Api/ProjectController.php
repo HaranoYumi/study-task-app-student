@@ -2,89 +2,115 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Requests\Project\StoreProjectRequest;
-use App\Http\Requests\Project\UpdateProjectRequest;
-use App\Http\Resources\ProjectResource;
 use App\Models\Project;
-use App\UseCases\Project\CreateProjectUseCase;
-use App\UseCases\Project\GetProjectUseCase;
-use App\UseCases\Project\GetProjectsUseCase;
-use App\UseCases\Project\UpdateProjectUseCase;
-use App\UseCases\Project\DeleteProjectUseCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Validator;
 
-
+/**
+ * Lesson6-2用：敢えて冗長なコード（Before版）
+ * Laravelのデフォルトエラーハンドリングを学ぶための教材コード
+ */
 class ProjectController extends ApiController
 {
-    public function __construct(
-        private CreateProjectUseCase $createProjectUseCase,
-        private GetProjectUseCase $getProjectUseCase,
-        private UpdateProjectUseCase $updateProjectUseCase,
-        private DeleteProjectUseCase $deleteProjectUseCase,
-        private GetProjectsUseCase $getProjectsUseCase,
-    ) {}
-
     /**
      * 自分が所属しているプロジェクト一覧を返す
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
-        $projects = $this->getProjectsUseCase->execute($request->user());
+        $projects = Project::all();
 
-        return ProjectResource::collection($projects);
+        return response()->json($projects);
     }
 
     /**
      * プロジェクト新規作成
      */
-    public function store(StoreProjectRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        $project = $this->createProjectUseCase->execute(
-            $request->validated(),
-            $request->user()
-        );
+        // ❌ 冗長：FormRequestを使わず、手動でバリデーション
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|max:255',
+            'description' => 'nullable|string',
+        ]);
 
-        return $this->response()->createdWithResource(
-            new ProjectResource($project),
-            'プロジェクトを作成しました'
-        );
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'バリデーションエラー',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $project = Project::create($request->all());
+
+        return response()->json($project, 201);
     }
 
     /**
      * プロジェクト詳細を返す
      */
-    public function show(Request $request, Project $project): ProjectResource
+    public function show($id): JsonResponse
     {
-        $project = $this->getProjectUseCase->execute($project, $request->user());
-        return new ProjectResource($project);
+        // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
+        $project = Project::find($id);
+
+        if (!$project) {
+            return response()->json([
+                'message' => 'プロジェクトが見つかりません'
+            ], 404);
+        }
+
+        return response()->json($project);
     }
 
     /**
      * プロジェクト更新
      */
-    public function update(UpdateProjectRequest $request, Project $project): JsonResponse
+    public function update(Request $request, $id): JsonResponse
     {
-        $project = $this->updateProjectUseCase->execute(
-            $project,
-            $request->validated(),
-            $request->user()
-        );
+        // ❌ 冗長：手動で存在チェック
+        $project = Project::find($id);
+        
+        if (!$project) {
+            return response()->json([
+                'message' => 'プロジェクトが見つかりません'
+            ], 404);
+        }
 
-        return $this->response()->successWithResource(
-            new ProjectResource($project),
-            'プロジェクトを更新しました'
-        );
+        // ❌ 冗長：手動でバリデーション
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'バリデーションエラー',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $project->update($request->all());
+
+        return response()->json($project);
     }
 
     /**
      * プロジェクト削除
      */
-    public function destroy(Request $request, Project $project): JsonResponse
+    public function destroy($id): JsonResponse
     {
-        $this->deleteProjectUseCase->execute($project, $request->user());
+        // ❌ 冗長：手動で存在チェック
+        $project = Project::find($id);
 
-        return $this->response()->success(null, 'プロジェクトを削除しました');
+        if (!$project) {
+            return response()->json([
+                'message' => 'プロジェクトが見つかりません'
+            ], 404);
+        }
+
+        $project->delete();
+
+        return response()->json(['message' => 'プロジェクトを削除しました']);
     }
 }

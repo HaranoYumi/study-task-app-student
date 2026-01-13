@@ -2,122 +2,176 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Requests\Task\StoreTaskRequest;
-use App\Http\Requests\Task\UpdateTaskRequest;
-use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
-use App\UseCases\Task\CreateTaskUseCase;
-use App\UseCases\Task\GetTasksUseCase;
-use App\UseCases\Task\GetTaskUseCase;
-use App\UseCases\Task\UpdateTaskUseCase;
-use App\UseCases\Task\DeleteTaskUseCase;
-use App\UseCases\Task\StartTaskUseCase;
-use App\UseCases\Task\CompleteTaskUseCase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Validator;
 
+/**
+ * Lesson6-2用：敢えて冗長なコード（Before版）
+ * Laravelのデフォルトエラーハンドリングを学ぶための教材コード
+ */
 class TaskController extends ApiController
 {
-    public function __construct(
-        private GetTasksUseCase $getTasksUseCase,
-        private CreateTaskUseCase $createTaskUseCase,
-        private GetTaskUseCase $getTaskUseCase,
-        private UpdateTaskUseCase $updateTaskUseCase,
-        private DeleteTaskUseCase $deleteTaskUseCase,
-        private StartTaskUseCase $startTaskUseCase,
-        private CompleteTaskUseCase $completeTaskUseCase,
-    ) {}
-
     /**
      * プロジェクトのタスク一覧を取得
-     *
-     * @param Request $request
-     * @param Project $project
-     * @return AnonymousResourceCollection
      */
-    public function index(Request $request, Project $project): AnonymousResourceCollection
+    public function index(Request $request, $projectId): JsonResponse
     {
-        $tasks = $this->getTasksUseCase->execute($project, $request->user());
+        // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
+        $project = Project::find($projectId);
+        
+        if (!$project) {
+            return response()->json([
+                'message' => 'プロジェクトが見つかりません'
+            ], 404);
+        }
 
-        return TaskResource::collection($tasks);
+        $tasks = $project->tasks;
+
+        return response()->json($tasks);
     }
 
     /**
      * タスク作成
      */
-    public function store(StoreTaskRequest $request, Project $project): JsonResponse
+    public function store(Request $request, $projectId): JsonResponse
     {
-        $task = $this->createTaskUseCase->execute(
-            $request->validated(),
-            $project,
-            $request->user()
-        );
+        // ❌ 冗長：手動でプロジェクトの存在チェック
+        $project = Project::find($projectId);
+        
+        if (!$project) {
+            return response()->json([
+                'message' => 'プロジェクトが見つかりません'
+            ], 404);
+        }
 
-        return $this->response()->createdWithResource(
-            new TaskResource($task),
-            'タスクを作成しました'
-        );
+        // ❌ 冗長：FormRequestを使わず、手動でバリデーション
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|max:255',
+            'description' => 'nullable|string',
+            'status' => 'nullable|in:todo,doing,done',
+            'due_date' => 'nullable|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'バリデーションエラー',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $task = $project->tasks()->create($request->all());
+
+        return response()->json($task, 201);
     }
 
     /**
      * タスク詳細を取得
      */
-    public function show(Request $request, Task $task): TaskResource
+    public function show($id): JsonResponse
     {
-        $task = $this->getTaskUseCase->execute($task, $request->user());
-        return new TaskResource($task);
+        // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
+        $task = Task::find($id);
+
+        if (!$task) {
+            return response()->json([
+                'message' => 'タスクが見つかりません'
+            ], 404);
+        }
+
+        return response()->json($task);
     }
 
     /**
      * タスク更新
      */
-    public function update(UpdateTaskRequest $request, Task $task): JsonResponse
+    public function update(Request $request, $id): JsonResponse
     {
-        $task = $this->updateTaskUseCase->execute(
-            $task,
-            $request->validated(),
-            $request->user()
-        );
+        // ❌ 冗長：手動で存在チェック
+        $task = Task::find($id);
+        
+        if (!$task) {
+            return response()->json([
+                'message' => 'タスクが見つかりません'
+            ], 404);
+        }
 
-        return $this->response()->successWithResource(
-            new TaskResource($task),
-            'タスクを更新しました'
-        );
+        // ❌ 冗長：手動でバリデーション
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|max:255',
+            'description' => 'nullable|string',
+            'status' => 'nullable|in:todo,doing,done',
+            'due_date' => 'nullable|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'バリデーションエラー',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $task->update($request->all());
+
+        return response()->json($task);
     }
 
     /**
      * タスク削除
      */
-    public function destroy(Request $request, Task $task): JsonResponse
+    public function destroy($id): JsonResponse
     {
-        $this->deleteTaskUseCase->execute($task, $request->user());
+        // ❌ 冗長：手動で存在チェック
+        $task = Task::find($id);
 
-        return $this->response()->success(null, 'タスクを削除しました');
+        if (!$task) {
+            return response()->json([
+                'message' => 'タスクが見つかりません'
+            ], 404);
+        }
+
+        $task->delete();
+
+        return response()->json(['message' => 'タスクを削除しました']);
     }
 
     /**
      * タスクを開始（todo → doing）
      */
-    public function start(Request $request, Task $task): JsonResponse
+    public function start($id): JsonResponse
     {
-        $task = $this->startTaskUseCase->execute($task, $request->user());
-        return $this->response()->successWithResource(
-            new TaskResource($task),
-            'タスクを開始しました'
-        );
+        // ❌ 冗長：手動で存在チェック
+        $task = Task::find($id);
+
+        if (!$task) {
+            return response()->json([
+                'message' => 'タスクが見つかりません'
+            ], 404);
+        }
+
+        $task->update(['status' => 'doing']);
+
+        return response()->json($task);
     }
 
     /**
      * タスクを完了（doing → done）
      */
-    public function complete(Request $request, Task $task): JsonResponse
+    public function complete($id): JsonResponse
     {
-        $task = $this->completeTaskUseCase->execute($task, $request->user());
-        return $this->response()->successWithResource(
-            new TaskResource($task),
-            'タスクを完了しました'
-        );
+        // ❌ 冗長：手動で存在チェック
+        $task = Task::find($id);
+
+        if (!$task) {
+            return response()->json([
+                'message' => 'タスクが見つかりません'
+            ], 404);
+        }
+
+        $task->update(['status' => 'done']);
+
+        return response()->json($task);
     }
 }
