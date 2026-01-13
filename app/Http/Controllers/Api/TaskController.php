@@ -2,53 +2,86 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Requests\Task\StoreTaskRequest;
-use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Project;
 use App\Models\Task;
+use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Validator;
 
-/**
- * Lesson6-3: After版 + ビジネスルールチェック
- * - Route Model Binding で404チェックを自動化
- * - FormRequest でバリデーションを分離
- * - ApiResource でレスポンスを整形
- * - ビジネスルールチェック（409 Conflict）を実装
- *   - 完了済みタスクは編集不可
- *   - 完了済みタスクは削除不可
- *   - タスクの状態遷移ルール（todo → doing → done）
- */
 class TaskController extends ApiController
 {
     /**
      * プロジェクトのタスク一覧を取得
      */
-    public function index(Project $project): AnonymousResourceCollection
+    public function index(Request $request, Project $project): AnonymousResourceCollection|JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
-        $tasks = $project->tasks;
+        // 自分が所属しているかチェック
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
+        $tasks = $project->tasks()
+            ->with('createdBy')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return TaskResource::collection($tasks);
     }
 
     /**
      * タスク作成
      */
-    public function store(StoreTaskRequest $request, Project $project): TaskResource
+    public function store(StoreTaskRequest $request, Project $project): JsonResponse
     {
-        // ✅ FormRequestで自動的にバリデーション済み
-        // ✅ Route Model Bindingで$projectは存在保証済み
+        // 自分が所属しているかチェック
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
         $task = $project->tasks()->create($request->validated());
-        return new TaskResource($task);
+        $task->load('createdBy');
+
+        return (new TaskResource($task))
+            ->additional(['message' => 'タスクを作成しました'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
      * タスク詳細を取得
      */
-    public function show(Task $task): TaskResource
+    public function show(Request $request, Task $task): TaskResource|JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
+        // 自分が所属しているかチェック
+        $project = $task->project;
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
+        $task->load(['createdBy', 'project']);
+
         return new TaskResource($task);
     }
 
@@ -57,54 +90,88 @@ class TaskController extends ApiController
      */
     public function update(UpdateTaskRequest $request, Task $task): TaskResource|JsonResponse
     {
-        // ✅ FormRequestで自動的にバリデーション済み
-        // ✅ Route Model Bindingで$taskは存在保証済み
+        // 自分が所属しているかチェック
+        $project = $task->project;
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
 
-        // ビジネスルールチェック：完了済みは編集不可
-        if ($task->status === 'done') {
+        if (!$isMember) {
             return response()->json([
-                'message' => '完了済みのタスクは編集できません'
-            ], 409);
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
         }
 
-        $task->update($request->validated());
-        return new TaskResource($task);
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|required|string|max:255',
+            'description' => 'nullable|string',
+            'status' => 'sometimes|in:todo,doing,done',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'バリデーションエラー',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $task->update($request->only(['title', 'description', 'status']));
+        $task->load('createdBy');
+
+        return (new TaskResource($task))
+            ->additional(['message' => 'タスクを更新しました']);
     }
 
     /**
      * タスク削除
      */
-    public function destroy(Task $task): JsonResponse
+    public function destroy(Request $request, Task $task): JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
+        // 自分が所属しているかチェック
+        $project = $task->project;
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
 
-        // ビジネスルールチェック：完了済みタスクは削除できない
-        if ($task->status === 'done') {
+        if (!$isMember) {
             return response()->json([
-                'message' => '完了済みのタスクは削除できません'
-            ], 409);
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
         }
 
         $task->delete();
-        return response()->json(['message' => 'タスクを削除しました']);
+
+        return response()->json([
+            'message' => 'タスクを削除しました',
+        ]);
     }
 
     /**
      * タスクを開始（todo → doing）
      */
-    public function start(Task $task): TaskResource|JsonResponse
+    public function start(Request $request, Task $task): TaskResource|JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
+        // 自分が所属しているかチェック
+        $project = $task->project;
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
 
-        // ビジネスルールチェック：todoからのみ開始可能
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
+        // 状態チェック
         if ($task->status !== 'todo') {
             return response()->json([
-                'message' => '未着手のタスクのみ開始できます'
+                'message' => '未着手のタスクのみ開始できます',
             ], 409);
         }
 
-        $task->status = 'doing';
-        $task->save();
+        $task->update(['status' => 'doing']);
+        $task->load('createdBy');
 
         return new TaskResource($task);
     }
@@ -112,19 +179,29 @@ class TaskController extends ApiController
     /**
      * タスクを完了（doing → done）
      */
-    public function complete(Task $task): TaskResource|JsonResponse
+    public function complete(Request $request, Task $task): TaskResource|JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
+        // 自分が所属しているかチェック
+        $project = $task->project;
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
 
-        // ビジネスルールチェック：doingからのみ完了可能
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
+        // 状態チェック
         if ($task->status !== 'doing') {
             return response()->json([
-                'message' => '作業中のタスクのみ完了できます'
+                'message' => '作業中のタスクのみ完了できます',
             ], 409);
         }
 
-        $task->status = 'done';
-        $task->save();
+        $task->update(['status' => 'done']);
+        $task->load('createdBy');
 
         return new TaskResource($task);
     }
