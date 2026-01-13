@@ -52,15 +52,73 @@ class ProjectMemberController extends ApiController
     }
 
     /**
-     * プロジェクトからメンバーを削除
+     * プロジェクトからメンバーを削除（users()リレーションを使用）
      */
-    public function destroy(Project $project, User $user): JsonResponse
+    public function destroy(Request $request, Project $project, $userId): JsonResponse
     {
-        // ✅ Route Model Bindingで$project、$userともに存在保証済み
+        // 自分が所属しているかチェック
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
 
-        // メンバーを削除
-        $project->members()->detach($user->id);
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
 
-        return response()->json(['message' => 'メンバーを削除しました']);
+        // 削除対象のユーザーを取得
+        $targetUser = $project->users()
+            ->where('users.id', $userId)
+            ->first();
+
+        if (!$targetUser) {
+            return response()->json([
+                'message' => 'User is not a member of this project.',
+            ], 404);
+        }
+
+        // 自分がowner/adminかチェック（users()リレーションを使用）
+        $myUser = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->first();
+
+        if (!$myUser || !in_array($myUser->pivot->role, ['project_owner', 'project_admin'])) {
+            return response()->json([
+                'message' => 'メンバーを削除する権限がありません（オーナーまたは管理者のみ）',
+            ], 403);
+        }
+
+        // Owner維持チェック（Owner削除後に0人になる場合は不可）
+        if ($targetUser->pivot->role === 'project_owner') {
+            $ownerCount = $project->users()
+                ->wherePivot('role', 'project_owner')
+                ->count();
+
+            if ($ownerCount <= 1) {
+                return response()->json([
+                    'message' => 'プロジェクトの最後のオーナーは削除できません',
+                ], 409);
+            }
+        }
+
+        // 未完了タスクチェック
+        $hasIncompleteTasks = $project->tasks()
+            ->where('created_by', $userId)
+            ->whereIn('status', ['todo', 'doing'])
+            ->exists();
+
+        if ($hasIncompleteTasks) {
+            return response()->json([
+                'message' => '未完了のタスクがあるメンバーは削除できません',
+            ], 409);
+        }
+
+        // 削除実行（users()リレーションのdetach()を使用）
+        $project->users()->detach($userId);
+
+        return response()->json([
+            'message' => 'メンバーを削除しました',
+        ]);
     }
 }
