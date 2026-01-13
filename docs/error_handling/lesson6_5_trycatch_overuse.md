@@ -53,13 +53,78 @@ public function complete(Request $request, Task $task)
 
 **👩‍💻 ユーザー：** 「えっ！？」
 
+**🐘 ガネーシャ：** 「まあ、これはまだマシや。ちょっと待て...お前、他のところにも try-catch 書いとるやろ。全部見せてみ」
+
+**👩‍💻 ユーザー：** 「えっ、はい...タスク作成のところにも書きました」
+
+```php
+public function store(Request $request, Project $project)
+{
+    try {
+        $task = Task::create([
+            'project_id' => $project->id,
+            'title' => $request->title,
+            'status' => 'todo',
+            'created_by' => $request->user()->id,
+        ]);
+
+        return new TaskResource($task);
+
+    } catch (Exception $e) {
+        // TODO: あとで書く
+    }
+}
+```
+
+**🐘 ガネーシャ：** 「...おい。catch の中、空っぽやんけ」
+
+**👩‍💻 ユーザー：** 「あ、それは後で書こうと思って忘れてました...でも大丈夫ですよね？Laravel がデフォルトでキャッチしてくれるんでしたよね？」
+
+**🐘 ガネーシャ：** 「アカンアカン！**自分で catch を書いたら、Laravel のデフォルト処理は動かへん**んやで！」
+
+**👩‍💻 ユーザー：** 「え！？」
+
+**🐘 ガネーシャ：** 「これ、めっちゃ危険や。何が起きてるか説明したる」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              catch 内が空っぽの場合                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  例外が発生！                                                │
+│       │                                                     │
+│       ▼                                                     │
+│  自分の catch (Exception $e) で捕まる                       │
+│       │                                                     │
+│       ▼                                                     │
+│  catch 内が空っぽ...                                        │
+│       │                                                     │
+│       ▼                                                     │
+│  何も起きない！                                              │
+│  ├── レスポンスが返らない（画面が真っ白）                  │
+│  ├── ログも残らない（原因不明）                            │
+│  └── Laravel のデフォルト処理も動かない！                  │
+│                                                             │
+│  ⚠️ 「後で書く」つもりで忘れると最悪の結果に...            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「えっ、Laravel がデフォルトで処理してくれると思ってました...」
+
+**🐘 ガネーシャ：** 「**自分で catch を書いた時点で、Laravel の出番はなくなる**んや。catch は Laravel のデフォルトより『優先』されるからな」
+
+**👩‍💻 ユーザー：** 「じゃあ、空っぽの catch を書いたら、エラーが完全に消えちゃう...？」
+
+**🐘 ガネーシャ：** 「せや！これを『握りつぶし』って言うんや。エラーを catch して、何もしないでなかったことにしてしまう。最悪のパターンやで」
+
 ---
 
 ## 📖 第 1 章：デフォルトと変わらない try-catch
 
 ### 🎭 何が問題なのか
 
-**🐘 ガネーシャ：** 「さっきのコード、try-catch を外したらどうなると思う？」
+**🐘 ガネーシャ：** 「さっきの空っぽ catch は論外として、最初に見せてくれたコードも問題があるで。try-catch を外したらどうなると思う？」
 
 **👩‍💻 ユーザー：** 「えっと...エラーが起きたらプログラムが止まる...？」
 
@@ -109,6 +174,12 @@ public function complete(Request $request, Task $task)
 }
 ```
 
+**🐘 ガネーシャ：** 「Lesson6-4 で教えた『Exception の階層構造』を覚えとるか？」
+
+**👩‍💻 ユーザー：** 「はい！`Exception` は『すべての例外の親』で、`catch (Exception $e)` って書くと全部の例外が捕まるんですよね」
+
+**🐘 ガネーシャ：** 「せや！だから `ModelNotFoundException` も `QueryException` も、全部この catch で捕まってしまうんや」
+
 **問題点：**
 
 ```
@@ -120,10 +191,11 @@ public function complete(Request $request, Task $task)
 │  ModelNotFoundException → Laravel が 404 を返す ✅           │
 │                                                             │
 │  【try-catch ありの場合（お前のコード）】                    │
-│  ModelNotFoundException → catch で捕まる                    │
+│  ModelNotFoundException → catch (Exception $e) で捕まる     │
 │                        → 500 を返す ❌                      │
 │                                                             │
-│  本来 404 で返すべきものが 500 になってしまう！              │
+│  Lesson6-4 で学んだ通り、Exception は「すべての例外の親」   │
+│  → 本来 404 で返すべきものが 500 になってしまう！           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -131,6 +203,43 @@ public function complete(Request $request, Task $task)
 **👩‍💻 ユーザー：** 「えっ、try-catch を書いたせいで、正しいステータスコードが返らなくなる...？」
 
 **🐘 ガネーシャ：** 「せや。Laravel のデフォルト処理の方が賢いんや」
+
+---
+
+### ⚠️ catch は Laravel のデフォルトより「優先」される
+
+**🐘 ガネーシャ：** 「ここ大事やで。**try-catch を書くと、Laravel のデフォルト処理より先に catch が実行される**んや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              例外処理の優先順位                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  例外が発生！                                                │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌─────────────────────────────────────┐                   │
+│  │ 自分で書いた catch があるか？       │                   │
+│  └─────────────┬───────────────────────┘                   │
+│           │           │                                     │
+│          Yes          No                                    │
+│           │           │                                     │
+│           ▼           ▼                                     │
+│   【自分の catch】  【Laravel のデフォルト】                │
+│   ・自分の処理が    ・適切なステータスコード                │
+│     実行される      ・自動でログ記録                        │
+│   ・Laravelの処理   ・スタックトレース保存                  │
+│     は実行されない                                          │
+│                                                             │
+│  ⚠️ 自分で catch すると、Laravel の便利な処理が             │
+│     全部スキップされてしまう！                              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「つまり、自分で catch を書くと、Laravel の自動処理が動かなくなる...？」
+
+**🐘 ガネーシャ：** 「その通りや！だから『意味のある catch』を書かんと、Laravel に任せた方がええんや」
 
 ---
 
@@ -144,9 +253,39 @@ public function complete(Request $request, Task $task)
 | `QueryException`          | **500** + 詳細ログ | 500（詳細なし）❌ |
 | その他の例外              | **500** + 詳細ログ | 500（詳細なし）❌ |
 
-**🐘 ガネーシャ：** 「Laravel のデフォルトは、例外の種類に応じて適切なステータスコードを返してくれる。でも雑な try-catch で全部捕まえると、全部 500 になってしまうんや」
+**🐘 ガネーシャ：** 「Laravel のデフォルトは、例外の種類に応じて適切なステータスコードを返してくれる。でも雑な `catch (Exception $e)` で全部捕まえると、全部 500 になってしまうんや」
 
-**👩‍💻 ユーザー：** 「しかも開発環境なら `APP_DEBUG=true` で詳細も見れるんですよね」
+**👩‍💻 ユーザー：** 「あ、でも `$e->getCode()` を使えば、500 を直接書かなくても適切なステータスコードを返せるんじゃないですか？」
+
+```php
+// こうすれば適切なステータスコードが返せる...？
+} catch (Exception $e) {
+    return response()->json(
+        ['message' => $e->getMessage()],
+        $e->getCode() ?: 500  // 例外のコードを使う
+    );
+}
+```
+
+**🐘 ガネーシャ：** 「ほう、よう考えとるな。でもな、それでも問題があるで」
+
+**👩‍💻 ユーザー：** 「えっ？」
+
+**🐘 ガネーシャ：** 「まず、**ログを記録してへんやろ？** エラーが起きても後から調査できひん」
+
+**👩‍💻 ユーザー：** 「あっ...」
+
+**🐘 ガネーシャ：** 「それに、`getCode()` が返すのは HTTP ステータスコードとは限らんで。DB エラーのコードとか、全然違う数字が返ってくることもある」
+
+**👩‍💻 ユーザー：** 「じゃあ、ログも書いて、ステータスコードも工夫して...」
+
+**🐘 ガネーシャ：** 「せやから言うとるやん。**それなら何もせずに Laravel のデフォルトに任せた方がええ**んや！」
+
+**👩‍💻 ユーザー：** 「...確かに」
+
+**🐘 ガネーシャ：** 「しかも開発環境なら `APP_DEBUG=true` で詳細も見れるんやで」
+
+**👩‍💻 ユーザー：** 「Laravel に任せた方が、全部やってくれるんですね...」
 
 **🐘 ガネーシャ：** 「せや！Laravel に任せた方が、ステータスコードもログもスタックトレースも全部ちゃんと出してくれる。自分で雑に書くより賢いんや」
 
@@ -181,9 +320,13 @@ catch (Exception $e) {
 │         → storage/logs/laravel.log で確認できる             │
 │                                                             │
 │  【雑な try-catch】                                          │
-│  例外発生 → catch で捕まえる                                │
-│         → ログに何も残らない                                │
+│  例外発生 → 自分の catch で捕まえる                         │
+│         → Laravel のログ処理はスキップされる                │
+│         → ログに何も残らない！                              │
 │         → 何が起きたか分からない！                          │
+│                                                             │
+│  ⚠️ catch が優先されるので、Laravel の自動ログ記録も        │
+│     実行されなくなってしまう！                              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -218,31 +361,38 @@ catch (Exception $e) {
 }
 ```
 
-**🐘 ガネーシャ：** 「全部アウトや。catch したなら、最低限ログは記録せなアカン」
+**🐘 ガネーシャ：** 「全部アウトや。catch したなら、最低限ログは記録せなアカン。じゃないと Laravel が自動で記録してくれるはずのログも残らんくなるで」
 
----
-
-### ✅ catch するなら最低限やること
+**👩‍💻 ユーザー：** 「じゃあ、catch の中でログを書いて、さっき言ってた `$e->getCode()` も使えば完璧じゃないですか？」
 
 ```php
-// ✅ 最低限：ログを記録する
+// じゃあこうすれば完璧...？
 catch (Exception $e) {
     Log::error('タスク完了エラー', [
         'task_id' => $task->id,
-        'user_id' => $request->user()->id,
         'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
     ]);
 
-    return response()->json([
-        'message' => 'エラーが発生しました',
-    ], 500);
+    return response()->json(
+        ['message' => 'エラーが発生しました'],
+        $e->getCode() ?: 500  // ステータスコードも動的に！
+    );
 }
 ```
 
-**👩‍💻 ユーザー：** 「ログを記録すれば、後から原因を調べられるんですね」
+**🐘 ガネーシャ：** 「待て待て。それ、さっき言うた問題を忘れとらへんか？」
 
-**🐘 ガネーシャ：** 「せや。でもな...」
+**👩‍💻 ユーザー：** 「えっ？ログも書いて、ステータスコードも動的にしたのに...？」
+
+**🐘 ガネーシャ：** 「`getCode()` が HTTP ステータスコードを返すとは限らんって言うたやろ。DB エラーのコードとか、0 とか返ってきたらどうするんや」
+
+**👩‍💻 ユーザー：** 「あっ...確かに」
+
+**🐘 ガネーシャ：** 「しかもな、Laravel のデフォルトは**ログもステータスコードも全部自動でやってくれる**んやで？ログを自分で書くなら、Laravel のログ形式に合わせてスタックトレースも記録せなアカンし...」
+
+**👩‍💻 ユーザー：** 「え、じゃあ結局どうすれば...」
+
+**🐘 ガネーシャ：** 「**そもそも try-catch を書く必要があるのか**、考え直してみぃ」
 
 ---
 
@@ -253,14 +403,17 @@ catch (Exception $e) {
 **🐘 ガネーシャ：** 「ここで一回立ち止まって考えてみ。そもそも、その try-catch は必要か？」
 
 ```php
-// お前が書いたコード
+// お前が書いたコード（ログも書いて、getCode() も使った版）
 public function complete(Request $request, Task $task)
 {
     try {
         // ... 処理 ...
     } catch (Exception $e) {
-        Log::error(...);
-        return response()->json(['message' => 'エラー'], 500);
+        Log::error('エラー', ['error' => $e->getMessage()]);
+        return response()->json(
+            ['message' => 'エラーが発生しました'],
+            $e->getCode() ?: 500
+        );
     }
 }
 ```
@@ -281,36 +434,90 @@ public function complete(Request $request, Task $task)
 
 **🐘 ガネーシャ：** 「せや！わざわざ自分で書く必要ないんや」
 
+**👩‍💻 ユーザー：** 「いや、でも待ってください！デフォルトだと『Server Error』とか『500 Internal Server Error』ってそっけないメッセージになっちゃいますよね？それをカスタマイズしたくて、あえて catch に書いてるんですよ！」
+
+**🐘 ガネーシャ：** 「ほう、ええとこ突いてきたな」
+
+**👩‍💻 ユーザー：** 「ユーザーに分かりやすいエラーメッセージを返したいから、catch で `return response()->json(['message' => '...'` って書いてるんです」
+
+**🐘 ガネーシャ：** 「気持ちは分かる。でもな、**全メソッドに try-catch 書いてエラーメッセージをカスタマイズしとったら、とんでもないことになる**で？」
+
+**👩‍💻 ユーザー：** 「...確かに、メソッドが 100 個あったら 100 箇所に書くことになる...」
+
+**🐘 ガネーシャ：** 「せやろ？しかも全部同じような処理になるやん。それ、**一括で設定できる方法がある**んや」
+
+**👩‍💻 ユーザー：** 「一括で！？」
+
+**🐘 ガネーシャ：** 「Laravel の **Handler（例外ハンドラー）** っていう仕組みがあってな、大元のところでエラーメッセージを一括でカスタマイズできるんや。それはまた別のレッスンで教えたる」
+
+**👩‍💻 ユーザー：** 「なるほど...エラーメッセージのカスタマイズは、try-catch じゃなくて Handler でやるんですね」
+
+**🐘 ガネーシャ：** 「せや。だから **try-catch は『あえて書く』もん**なんや。特定のエラーだけ特別な処理をしたい時にな」
+
 ---
 
 ### 🔑 try-catch を書く意味
 
-**🐘 ガネーシャ：** 「ここ大事やで。try-catch は『あえて書く』もんなんや」
+**🐘 ガネーシャ：** 「整理するで。try-catch は『デフォルトとは違う処理をしたい時』にあえて書くもんや」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              try-catch を書く意味                            │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  try-catch は「デフォルトとは違う処理をしたい時」に書く     │
+│  ❌ こういう理由で try-catch を書くのは間違い               │
+│  ├── 「とりあえず安心のため」                              │
+│  └── 「エラーメッセージをカスタマイズしたいから」          │
+│      → Handler で一括設定できる（別レッスンで学ぶ）        │
 │                                                             │
-│  【デフォルトと違う処理の例】                                │
-│  ├── 独自のログを記録したい                                 │
-│  ├── こちらで指定したエラーメッセージを返したい             │
-│  ├── 失敗しても処理を続けたい                               │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  ✅ try-catch を「あえて書く」場面                          │
+│  ├── 失敗しても処理を続けたい（外部API連携など）           │
+│  ├── 特定のエラー時だけ通知を飛ばしたい                    │
 │  ├── リトライしたい                                         │
 │  └── ロールバック処理を入れたい                             │
 │                                                             │
-│  【そういうのがないなら】                                    │
-│  → Laravel のデフォルト処理に任せる                         │
-│  → try-catch は書かなくてOK                                 │
+│  → つまり「特定のエラーを指定して catch する」ことが多い！ │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **👩‍💻 ユーザー：** 「『とりあえず安心のため』じゃなくて、『明確な目的があるから書く』んですね」
 
-**🐘 ガネーシャ：** 「その通りや！目的がないなら書く必要ない。Laravel に任せた方が賢いんや」
+**🐘 ガネーシャ：** 「その通りや！しかも、catch する時は Lesson 6-4 で学んだように**特定の例外クラスを指定する**ことが多いで。`catch (Exception $e)` で全部キャッチするんやなくてな」
+
+**👩‍💻 ユーザー：** 「`catch (QueryException $e)` みたいに、DB エラーだけキャッチするとか！」
+
+**🐘 ガネーシャ：** 「せや！例えばこんな感じや」
+
+```php
+// 特定のエラー（DB エラー）だけキャッチして通知を飛ばす例
+public function store(Request $request)
+{
+    try {
+        $task = Task::create([
+            'title' => $request->title,
+            'project_id' => $request->project_id,
+        ]);
+        return new TaskResource($task);
+
+    } catch (QueryException $e) {
+        // DB エラーの時だけ Slack に通知して、エラーを返す
+        $this->slackNotifier->notify('DBエラー発生: ' . $e->getMessage());
+        Log::error('DBエラー', ['error' => $e->getMessage()]);
+        return response()->json(
+            ['message' => 'データベースエラーが発生しました'],
+            500
+        );
+    }
+    // → QueryException 以外のエラーは Laravel に任せる
+}
+```
+
+**👩‍💻 ユーザー：** 「なるほど！DB エラーの時だけ特別な処理（Slack 通知）をして、それ以外は Laravel に任せるんですね」
+
+**🐘 ガネーシャ：** 「せや！それが『あえて書く』ってことや」
 
 ---
 
@@ -329,7 +536,11 @@ public function complete(Request $request, Task $task)
 │      → Yes: try-catch を書く                                │
 │      → No: 書かなくてOK                                     │
 │                                                             │
-│  Q3: 外部APIなど、特別な失敗処理が必要？                     │
+│  Q3: 特定のエラー時だけ通知を飛ばしたい？                    │
+│      → Yes: try-catch を書く（Lesson6-4で学んだ通り）       │
+│      → No: 書かなくてOK                                     │
+│                                                             │
+│  Q4: 外部APIなど、特別な失敗処理が必要？                     │
 │      → Yes: try-catch を書く                                │
 │      → No: 書かなくてOK                                     │
 │                                                             │
@@ -342,11 +553,17 @@ public function complete(Request $request, Task $task)
 
 ## 🏗️ 第 4 章：UseCase に切り分けた場合
 
-### 🎭 新たな問題
+### 🎭 ガネーシャ、UseCase を発見する
 
-**🐘 ガネーシャ：** 「ほな次や。お前、UseCase への切り分けは終わっとるんやったな」
+**🐘 ガネーシャ：** 「ちょっと待て...お前のファイル、もっと見せてみ」
 
-**👩‍💻 ユーザー：** 「はい！でも、同じように try-catch を書いてしまいました...」
+**👩‍💻 ユーザー：** 「え、まだ何かありますか...？」
+
+**🐘 ガネーシャ：** 「おっ！お前、UseCase に切り分けとるファイルもあるやんけ！」
+
+**👩‍💻 ユーザー：** 「あ、それは...ちょうど UseCase への切り分けを教わって、今リファクタリング中なんです。まだ途中なんですけど...」
+
+**🐘 ガネーシャ：** 「ほう、見せてみ」
 
 ```php
 // CompleteTaskUseCase.php
@@ -362,13 +579,13 @@ class CompleteTaskUseCase
             // 権限チェック（Serviceに委譲）
             $result = $this->projectRules->ensureMember($task->project, $user);
             if ($result !== true) {
-                return $result;  // ❌ response を返してしまう
+                return $result;  // response を返す
             }
 
             // 状態チェック（privateメソッド）
             $result = $this->ensureCanComplete($task);
             if ($result !== true) {
-                return $result;  // ❌ response を返してしまう
+                return $result;  // response を返す
             }
 
             $task->update(['status' => 'done']);
@@ -377,15 +594,17 @@ class CompleteTaskUseCase
             return new TaskResource($task);
 
         } catch (Exception $e) {
-            Log::error('タスク完了エラー: ' . $e->getMessage());
-            return response()->json(['message' => 'エラー'], 500);
+            Log::error('タスク完了エラー', ['error' => $e->getMessage()]);
+            return response()->json(
+                ['message' => 'エラーが発生しました'],
+                $e->getCode() ?: 500
+            );
         }
     }
 
     private function ensureCanComplete(Task $task)
     {
         if (!$task->isDoing()) {
-            // ❌ throw ではなく response を返してしまう
             return response()->json([
                 'message' => '作業中のタスクのみ完了できます',
             ], 409);
@@ -406,7 +625,6 @@ class ProjectRules
             ->exists();
 
         if (!$isMember) {
-            // ❌ こっちも throw ではなく response を返してしまう
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません',
             ], 403);
@@ -418,15 +636,175 @@ class ProjectRules
 
 **👩‍💻 ユーザー：** 「ちゃんと Service に切り分けて、private メソッドも作りました！」
 
-**🐘 ガネーシャ：** 「切り分けはできとる。でもな、**private メソッドや Service で response を返しとる**のが問題なんや」
+**🐘 ガネーシャ：** 「切り分けはできとる。でもな、これ**問題だらけ**やで」
 
-**👩‍💻 ユーザー：** 「えっ、切り分けたのにダメなんですか？」
+**👩‍💻 ユーザー：** 「えっ、そんなに...？」
 
-**🐘 ガネーシャ：** 「せや。切り分けても response を返しとったら意味ないんや。UseCase も Service も HTTP のことを知ったらアカン」
+**🐘 ガネーシャ：** 「まず、**さっきも指摘したように `catch (Exception $e)` で全部捕まえてしまっとる**やろ。第 3 章で言うたやん」
+
+**👩‍💻 ユーザー：** 「あ...特定の例外クラスを指定しないとダメなんでしたね」
+
+**🐘 ガネーシャ：** 「せや。でもな、それ以前にもっと根本的な問題があるんや」
 
 ---
 
-### 🔍 UseCase で response を返す問題
+### 🔍 問題 1：return response() は catch されない！
+
+**🐘 ガネーシャ：** 「お前、この UseCase を Controller から呼んどるやろ？」
+
+**👩‍💻 ユーザー：** 「はい、こんな感じで...」
+
+```php
+// TaskController.php
+public function complete(Request $request, Task $task)
+{
+    try {
+        return $this->completeTaskUseCase->execute($task, $request->user());
+    } catch (Exception $e) {
+        Log::error('タスク完了エラー', ['error' => $e->getMessage()]);
+        return response()->json(
+            ['message' => 'エラーが発生しました'],
+            $e->getCode() ?: 500
+        );
+    }
+}
+```
+
+**🐘 ガネーシャ：** 「この Controller の catch、**UseCase 内の `return response()` は catch できへん**で」
+
+**👩‍💻 ユーザー：** 「え！？どういうことですか？」
+
+**🐘 ガネーシャ：** 「**return と catch は全く別もん**なんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          return response() は catch されない！               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【return response()】                                       │
+│  ├── 「値を返す」だけ                                       │
+│  ├── たまたまその値がエラーメッセージのJSON                 │
+│  ├── でも、ただの「戻り値」として扱われる                   │
+│  └── catch には引っかからない！                             │
+│                                                             │
+│  【throw】                                                   │
+│  ├── 「エラーという事象」を発生させる                       │
+│  ├── catch はこの「事象」をキャッチする                     │
+│  └── return response() は「事象」じゃない                   │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                                                             │
+│  つまり...                                                   │
+│  UseCase 内の return response() は                          │
+│  Controller の catch を素通りして、そのままフロントに返る！ │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「えっ、じゃあ Controller の try-catch は意味ないってことですか？」
+
+**🐘 ガネーシャ：** 「UseCase が `return response()` してる場合はな。catch は『エラーという事象』をキャッチするんや。`return response()` は『値を返してる』だけやから、catch には引っかからへん」
+
+---
+
+### 🎭 Controller で書くならまだいい
+
+**🐘 ガネーシャ：** 「まあ、Controller で `return response()` を書くならまだいいんや」
+
+```php
+// Controller ならまだOK
+public function complete(Request $request, Task $task)
+{
+    if ($task->status !== 'doing') {
+        return response()->json(['message' => '完了できません'], 409);
+    }
+    // ...
+}
+```
+
+**🐘 ガネーシャ：** 「Controller で直接書くと、そのまま HTTP レスポンスとしてフロントに返るからな。エラーがちゃんと伝わるんや」
+
+**👩‍💻 ユーザー：** 「なるほど、Controller なら response を返しても問題ないんですね」
+
+**🐘 ガネーシャ：** 「せや。でも UseCase や Service で response を返すと、さっき言うた通り catch されへんし、Controller が if で判定せなアカンくなる。それが問題なんや」
+
+---
+
+### 🔍 問題 2：Controller で if 判定すると冗長
+
+**👩‍💻 ユーザー：** 「じゃあ、UseCase は値を返すだけにして、Controller で if 判定すればいいですか？」
+
+```php
+// UseCase（文字列でエラーを返すパターン）
+class CompleteTaskUseCase
+{
+    public function execute(Task $task, User $user)
+    {
+        // 権限チェック
+        if (!$this->projectRules->isMember($task->project, $user)) {
+            return 'not_member';  // 文字列でエラーを返す
+        }
+
+        // 状態チェック
+        if (!$task->isDoing()) {
+            return 'not_doing';  // 文字列でエラーを返す
+        }
+
+        $task->update(['status' => 'done']);
+        return $task;  // 成功時は Task を返す
+    }
+}
+
+// Controller で if 判定するパターン
+public function complete(Request $request, Task $task)
+{
+    $result = $this->completeTaskUseCase->execute($task, $request->user());
+
+    // UseCase の戻り値を毎回 if でチェック...
+    if ($result === 'not_member') {
+        return response()->json(['message' => '権限がありません'], 403);
+    }
+    if ($result === 'not_doing') {
+        return response()->json(['message' => '完了できません'], 409);
+    }
+
+    return new TaskResource($result);
+}
+```
+
+**🐘 ガネーシャ：** 「これも問題あるで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          Controller で if 判定する問題                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣ 毎回 if を書かないといけない                            │
+│     UseCase を呼ぶたびに同じような if 文を書く羽目に        │
+│                                                             │
+│  2️⃣ 記載漏れのリスク                                        │
+│     新しいエラーケースを追加した時、if を書き忘れる         │
+│     → バグになる                                           │
+│                                                             │
+│  3️⃣ UseCase と Controller の知識が重複                      │
+│     エラーの種類を両方が知っている必要がある                │
+│     → 変更時に両方を修正しないといけない                   │
+│                                                             │
+│  4️⃣ 戻り値の型が不安定                                      │
+│     成功時: Task                                            │
+│     失敗時: string ('not_member', 'not_doing')              │
+│     → 型安全じゃない                                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「確かに...UseCase でエラーを追加したら、Controller の if も追加しないと...」
+
+**🐘 ガネーシャ：** 「しかも忘れたらバグや。**人間は絶対忘れる**んやで」
+
+---
+
+### 🔍 問題 3：UseCase で response を返す本質的な問題
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -450,11 +828,17 @@ class ProjectRules
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**🐘 ガネーシャ：** 「UseCase は HTTP のことを知ったらアカンのや」
+---
 
-**👩‍💻 ユーザー：** 「じゃあ、どうすればいいんですか？」
+### 😫 じゃあどうすればいいの？
 
-**🐘 ガネーシャ：** 「`throw` を使うんや。でもその前に、throw について詳しく教えたるわ」
+**👩‍💻 ユーザー：** 「`return response()` しても catch できない、Controller で if 判定しても冗長...じゃあ UseCase でエラーを伝えたい時はどうすればいいんですかぁ〜」
+
+**🐘 ガネーシャ：** 「そこで出てくるのが **`throw`** なんや！！」
+
+**👩‍💻 ユーザー：** 「throw...！」
+
+**🐘 ガネーシャ：** 「`throw` を使えば、UseCase からエラーを『事象』として伝えられる。Controller で if 判定する必要もないし、catch もできるんや」
 
 ---
 
@@ -462,7 +846,7 @@ class ProjectRules
 
 ### 🎭 return と throw の違い
 
-**🐘 ガネーシャ：** 「まず return と throw の違いを理解せなアカン」
+**🐘 ガネーシャ：** 「まず return と throw の違いをしっかり理解せなアカン」
 
 #### return は「普通に帰る」
 
@@ -486,6 +870,7 @@ if ($result !== true) {  // ← 毎回チェックが必要
 
 -   呼び出し側が「戻り値をチェックする責任」がある
 -   チェックを忘れるとバグになる
+-   **catch には引っかからない**
 
 ---
 
@@ -499,15 +884,28 @@ private function ensureCanComplete(Task $task): void
     }
 }
 
-// 使う側
-$this->ensureCanComplete($task);  // エラーなら例外が飛ぶ
-// ここに来たら正常 ← チェック不要！
+// 使う側（Controller）
+public function complete(Request $request, Task $task)
+{
+    try {
+        $this->ensureCanComplete($task);  // エラーなら例外が飛ぶ
+        // ここに来たら正常 ← if チェック不要！
+
+        $task->update(['status' => 'done']);
+        return new TaskResource($task);
+
+    } catch (Exception $e) {
+        // throw された例外をここでキャッチできる！
+        return response()->json(['message' => $e->getMessage()], 500);
+    }
+}
 ```
 
 **メリット：**
 
--   呼び出し側はチェック不要
+-   呼び出し側は if チェック不要
 -   忘れても例外が勝手に飛ぶ
+-   **catch でキャッチできる**
 
 ---
 
@@ -522,18 +920,20 @@ $this->ensureCanComplete($task);  // エラーなら例外が飛ぶ
 │  ├── 値を返す                                               │
 │  ├── 呼び出し元は戻り値をチェックする必要がある            │
 │  ├── チェックを忘れるとバグになる                          │
+│  ├── **catch には引っかからない**                          │
 │  └── 「正常系の一部」として扱われる                        │
 │                                                             │
 │  【throw】                                                   │
 │  ├── 例外を投げる                                           │
 │  ├── 呼び出し元は強制的に対応させられる                    │
 │  ├── 無視できない（catch されるまで飛び続ける）            │
+│  ├── **catch でキャッチできる**                            │
 │  └── 「異常系」として明確に扱われる                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻 ユーザー：** 「return は『無視できる』けど、throw は『無視できない』んですね！」
+**👩‍💻 ユーザー：** 「return は『無視できる』し『catch されない』けど、throw は『無視できない』し『catch できる』んですね！」
 
 **🐘 ガネーシャ：** 「せや！だからエラーを確実に伝えたい時は throw を使うんや」
 
@@ -618,9 +1018,10 @@ $this->ensureCanComplete($task);  // エラーなら例外が飛ぶ
 
 ### 🎯 Before / After
 
-#### ❌ Before：切り分けたけど response を返してしまう
+#### ❌ Before：UseCase が response を返し、Controller で catch しようとする
 
 ```php
+// ❌ CompleteTaskUseCase.php（response を返してしまう）
 class CompleteTaskUseCase
 {
     public function __construct(
@@ -629,26 +1030,20 @@ class CompleteTaskUseCase
 
     public function execute(Task $task, User $user)
     {
-        try {
-            // 切り分けてるけど...
-            $result = $this->projectRules->ensureMember($task->project, $user);
-            if ($result !== true) {
-                return $result;  // ❌ response がそのまま返る
-            }
-
-            $result = $this->ensureCanComplete($task);
-            if ($result !== true) {
-                return $result;  // ❌ response がそのまま返る
-            }
-
-            $task->update(['status' => 'done']);
-            $task->load('createdBy');
-            return new TaskResource($task);
-
-        } catch (Exception $e) {
-            Log::error('エラー: ' . $e->getMessage());
-            return response()->json(['message' => 'エラー'], 500);
+        // 切り分けてるけど...
+        $result = $this->projectRules->ensureMember($task->project, $user);
+        if ($result !== true) {
+            return $result;  // ❌ response がそのまま返る
         }
+
+        $result = $this->ensureCanComplete($task);
+        if ($result !== true) {
+            return $result;  // ❌ response がそのまま返る
+        }
+
+        $task->update(['status' => 'done']);
+        $task->load('createdBy');
+        return new TaskResource($task);
     }
 
     // ❌ throw ではなく response を返してしまう
@@ -664,9 +1059,27 @@ class CompleteTaskUseCase
 }
 ```
 
+```php
+// ❌ TaskController.php（catch しようとするが...）
+public function complete(Request $request, Task $task)
+{
+    try {
+        return $this->completeTaskUseCase->execute($task, $request->user());
+    } catch (Exception $e) {
+        // UseCase は response を return してるので、
+        // ここの catch には来ない！
+        Log::error('エラー', ['error' => $e->getMessage()]);
+        return response()->json(
+            ['message' => 'エラーが発生しました'],
+            $e->getCode() ?: 500
+        );
+    }
+}
+```
+
 **👩‍💻 ユーザー：** 「切り分けはしたんですけど...」
 
-**🐘 ガネーシャ：** 「private メソッドで response を返しとるやろ。これやと HTTP の知識が UseCase に漏れてしまっとる」
+**🐘 ガネーシャ：** 「UseCase が response を return しとるやろ。Controller で catch しようとしても、**return は catch されへん**んや。さっき説明した問題がそのまま起きとる」
 
 ---
 
@@ -736,17 +1149,147 @@ class ProjectRules
 ```
 
 ```php
-// Controller
+// Controller（try-catch を書いて catch する場合）
 public function complete(Request $request, Task $task): TaskResource
 {
-    $task = $this->completeTaskUseCase->execute($task, $request->user());
-    return new TaskResource($task);
+    try {
+        $task = $this->completeTaskUseCase->execute($task, $request->user());
+        return new TaskResource($task);
+
+    } catch (Exception $e) {
+        // UseCase から throw された例外をここで catch できる
+        return response()->json(['message' => $e->getMessage()], 500);
+    }
 }
 ```
 
-**👩‍💻 ユーザー：** 「あれ、でも Exception だと全部 500 エラーになりませんか？」
+**👩‍💻 ユーザー：** 「Controller で catch すれば、UseCase の throw を受け取れるんですね！」
 
-**🐘 ガネーシャ：** 「ええ質問や！確かに今のままやと全部 500 になる。403 や 409 を返したい場合は『カスタム例外』を作るんやけど、それは次回のレッスンで教えたるわ。今日は『throw を使う』ことを覚えてくれ」
+**🐘 ガネーシャ：** 「せや。でもな、冒頭で説明した通り、**自分で catch するとログも記録されへんし、ステータスコードも自分で管理せなアカン**。だから**必ずしも catch を書く必要はない**んや」
+
+```php
+// Controller（try-catch を書かない場合）
+public function complete(Request $request, Task $task): TaskResource
+{
+    // try-catch なし！
+    $task = $this->completeTaskUseCase->execute($task, $request->user());
+    return new TaskResource($task);
+
+    // UseCase で throw された例外は...
+    // → Laravel のデフォルトのエラーハンドラーがキャッチしてくれる！
+}
+```
+
+**👩‍💻 ユーザー：** 「え！try-catch を書かなくても大丈夫なんですか？」
+
+**🐘 ガネーシャ：** 「せや！**throw した例外は、誰かが catch するまで上に上がっていく**んや。Controller でも catch されへんかったら、最終的に **Laravel のデフォルトのエラーハンドラー**がキャッチしてくれる」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          throw した例外の行き先                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  UseCase で throw                                           │
+│       ↓                                                     │
+│  Controller で catch する？                                  │
+│       │                                                     │
+│      Yes → Controller の catch ブロックで処理               │
+│       │                                                     │
+│      No → Laravel のデフォルトハンドラーがキャッチ          │
+│            ├── ログに記録                                   │
+│            ├── 適切なステータスコードを返す                 │
+│            └── APP_DEBUG=true なら詳細も表示                │
+│                                                             │
+│  → つまり try-catch を書かなくても、ちゃんと処理される！    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「だから『try-catch は必須じゃない』『あえて書く』ってことだったんですね！」
+
+**🐘 ガネーシャ：** 「せや！分かってきたな！」
+
+---
+
+**👩‍💻 ユーザー：** 「あれ、でも `throw new Exception` だと全部 500 エラーになりませんか？」
+
+**🐘 ガネーシャ：** 「おおっ！めっちゃええとこに気づいたな！さすがや！」
+
+**👩‍💻 ユーザー：** 「えへへ」
+
+**🐘 ガネーシャ：** 「確かに今のままやと全部 500 になる。Lesson6-4 で教えた通り、Exception は『すべての例外の親』やからな。403 や 409 を返したい場合は『カスタム例外』を作るんやけど、それは次回のレッスンで詳しく教えたるわ」
+
+**👩‍💻 ユーザー：** 「カスタム例外...？」
+
+**🐘 ガネーシャ：** 「参考までにチラ見せしたるわ。こんな感じや」
+
+```php
+// 参考：カスタム例外を使うとこうなる（次回のレッスンで詳しく解説）
+
+// ForbiddenException.php（カスタム例外）
+class ForbiddenException extends Exception
+{
+    // 403 を返すための例外
+}
+
+// BusinessRuleException.php（カスタム例外）
+class BusinessRuleException extends Exception
+{
+    // 409 を返すための例外
+}
+
+// ProjectRules.php（Service）
+public function ensureMember(Project $project, User $user): void
+{
+    if (!$isMember) {
+        throw new ForbiddenException('このプロジェクトにアクセスする権限がありません');
+        // ↑ 403 用のカスタム例外を投げる
+    }
+}
+
+// CompleteTaskUseCase.php
+public function execute(Task $task, User $user): Task
+{
+    $this->projectRules->ensureMember($task->project, $user);
+    $this->ensureCanComplete($task);
+
+    $task->update(['status' => 'done']);
+    return $task;
+}
+
+private function ensureCanComplete(Task $task): void
+{
+    if (!$task->isDoing()) {
+        throw new BusinessRuleException('作業中のタスクのみ完了できます');
+        // ↑ 409 用のカスタム例外を投げる
+    }
+}
+
+// TaskController.php
+public function complete(Request $request, Task $task): TaskResource
+{
+    try {
+        $task = $this->completeTaskUseCase->execute($task, $request->user());
+        return new TaskResource($task);
+
+    } catch (ForbiddenException $e) {
+        // 403 用のカスタム例外を catch → 型が合っている！
+        return response()->json(['message' => $e->getMessage()], 403);
+
+    } catch (BusinessRuleException $e) {
+        // 409 用のカスタム例外を catch → 型が合っている！
+        return response()->json(['message' => $e->getMessage()], 409);
+    }
+}
+```
+
+**👩‍💻 ユーザー：** 「おお！throw と catch の型がちゃんと合ってる！」
+
+**🐘 ガネーシャ：** 「せや！これが文脈的に正しい書き方や。カスタム例外を使えば、throw する側と catch する側で型を揃えられるんや」
+
+**👩‍💻 ユーザー：** 「なるほど！例外の種類を分けることで、ステータスコードも分けられるんですね！」
+
+**🐘 ガネーシャ：** 「せや！今日は『throw を使う』ことを覚えてくれ。カスタム例外の作り方と、Handler での一括設定は次回のレッスンで詳しく教えたるわ！」
 
 ---
 
@@ -787,7 +1330,10 @@ public function complete(Request $request, Task $task): TaskResource
 │     → 通知は失敗しても、メイン処理は成功させたい            │
 │     → ログは記録すること！                                  │
 │                                                             │
-│  3️⃣ DBトランザクションでロールバックしたい場合              │
+│  3️⃣ 特定のエラー時だけ通知を飛ばしたい場合                  │
+│     → Lesson6-4 で学んだ catch (QueryException $e) など     │
+│                                                             │
+│  4️⃣ DBトランザクションでロールバックしたい場合              │
 │     → 複数の更新をまとめて取り消す                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -813,7 +1359,8 @@ class CompleteTaskUseCase
         // Slack通知（失敗しても処理は成功させたい）
         try {
             $this->slackNotifier->notify("タスク「{$task->title}」が完了しました");
-        } catch (Exception $e) {
+        } catch (GuzzleHttp\Exception\RequestException $e) {
+            // HTTP通信エラーだけを catch
             // Slackが落ちてても、タスク完了自体は成功
             Log::warning('Slack通知失敗: ' . $e->getMessage());
             // ここでは throw しない（処理を続ける）
@@ -825,13 +1372,156 @@ class CompleteTaskUseCase
 }
 ```
 
-**👩‍💻 ユーザー：** 「Slack が落ちてても、タスク完了は成功するんですね」
+**👩‍💻 ユーザー：** 「あっ！`catch (Exception $e)` じゃなくて、`catch (RequestException $e)` って特定のエラーを指定してる！」
 
-**🐘 ガネーシャ：** 「せや。これは『意図的に処理を続ける』パターンや。ログは記録しとるから、後から調査もできる」
+**🐘 ガネーシャ：** 「おお、ええとこに気づいたな！さっき学んだことがちゃんと身についとるやん」
+
+**👩‍💻 ユーザー：** 「`RequestException` って何ですか？」
+
+**🐘 ガネーシャ：** 「Guzzle っていう HTTP クライアントライブラリが投げる例外や。外部 API に通信する時によく使うで。これを指定すれば『HTTP 通信エラー』だけを catch できる」
+
+**👩‍💻 ユーザー：** 「特定の型を指定すれば、予期しないエラーは Laravel のデフォルト処理に任せられるんですね！」
+
+**🐘 ガネーシャ：** 「せや！これが握りつぶしを防ぐコツや」
+
+---
+
+### ⚠️ よくある間違い：throw と catch の型が合っていない
+
+**🐘 ガネーシャ：** 「ここで一つ注意や。よくある間違いを教えたる」
+
+**👩‍💻 ユーザー：** 「なんですか？」
+
+**🐘 ガネーシャ：** 「`throw` する例外の型と、`catch` する例外の型が合ってへんパターンや」
+
+```php
+// ❌ よくある間違い①：同じメソッド内で型が合っていない
+try {
+    // Exception を throw しているのに...
+    throw new Exception('エラーが発生しました');
+
+} catch (QueryException $e) {
+    // QueryException だけを catch している
+    // → Exception は QueryException の子クラスじゃないから catch されない！
+    Log::warning('DBエラー: ' . $e->getMessage());
+}
+// → throw した Exception は catch されずに上に飛んでいく
+```
+
+**🐘 ガネーシャ：** 「もっとよくあるのが、UseCase 内で throw して、Controller で catch する時に型が合ってへんパターンや」
+
+```php
+// ❌ よくある間違い②：UseCase で throw して Controller で catch する型が合っていない
+
+// CompleteTaskUseCase.php
+class CompleteTaskUseCase
+{
+    public function execute(Task $task, User $user): Task
+    {
+        $this->ensureCanComplete($task);  // ← ここで Exception が throw される
+
+        $task->update(['status' => 'done']);
+        return $task;
+    }
+
+    private function ensureCanComplete(Task $task): void
+    {
+        if (!$task->isDoing()) {
+            // Exception を throw している
+            throw new Exception('作業中のタスクのみ完了できます');
+        }
+    }
+}
+
+// TaskController.php
+public function complete(Request $request, Task $task)
+{
+    try {
+        $task = $this->completeTaskUseCase->execute($task, $request->user());
+        return new TaskResource($task);
+
+    } catch (BusinessRuleException $e) {
+        // BusinessRuleException だけを catch している
+        // → UseCase は Exception を throw しているから catch されない！
+        return response()->json(['message' => $e->getMessage()], 409);
+    }
+}
+// → UseCase が throw した Exception は catch されずに上に飛んでいく
+```
+
+**👩‍💻 ユーザー：** 「あ！UseCase で throw しているのが `Exception` なのに、Controller で `BusinessRuleException` を catch しようとしてる！」
+
+**🐘 ガネーシャ：** 「せや！UseCase と Controller が別ファイルやと、この間違いに気づきにくいんや。`throw` と `catch` の型が合っとるか、ちゃんと確認せなアカンで」
+
+```php
+// ✅ 正しい例：throw と catch の型が合っている
+try {
+    // QueryException を throw する処理（DB操作など）
+    $task = Task::create($data);  // DB操作で QueryException が発生する可能性
+
+} catch (QueryException $e) {
+    // QueryException を catch → 型が合っている！
+    Log::warning('DBエラー: ' . $e->getMessage());
+    throw $e;
+}
+```
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          throw と catch の型チェック                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  throw new Exception(...)                                   │
+│    ↓                                                        │
+│  catch (Exception $e)        → ✅ キャッチできる            │
+│  catch (QueryException $e)   → ❌ キャッチできない          │
+│  catch (BusinessRuleException $e) → ❌ キャッチできない     │
+│                                                             │
+│  throw new QueryException(...)                              │
+│    ↓                                                        │
+│  catch (Exception $e)        → ✅ キャッチできる（親だから）│
+│  catch (QueryException $e)   → ✅ キャッチできる            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻 ユーザー：** 「Lesson 6-4 で学んだ『親は子を捕まえられる』の逆パターンですね！」
+
+**🐘 ガネーシャ：** 「せや！ちゃんと覚えとるやん。えらいで！」
+
+---
+
+### 😵 ダメな例との比較
+
+```php
+// ❌ 全部キャッチ（握りつぶしのリスク大）
+try {
+    $this->slackNotifier->notify($message);
+} catch (Exception $e) {
+    // 全部の例外を catch してしまう
+    // → 予期しないバグも握りつぶしてしまう可能性
+    Log::warning('通知失敗: ' . $e->getMessage());
+}
+
+// ✅ 特定の型だけキャッチ（想定したエラーだけ）
+try {
+    $this->slackNotifier->notify($message);
+} catch (GuzzleHttp\Exception\RequestException $e) {
+    // HTTP通信のエラーだけを catch
+    Log::warning('Slack通知失敗: ' . $e->getMessage());
+}
+// → それ以外の予期しないエラーは Laravel に任せる
+```
+
+**🐘 ガネーシャ：** 「まあ、外部 API の場合は『とにかく失敗しても続けたい』から `Exception` で全部キャッチすることもあるけどな。その場合は**必ずログを残す**ことが大事や」
 
 ---
 
 ### 🎯 実践例 2：DB トランザクション
+
+**🐘 ガネーシャ：** 「次はトランザクションのパターンや。これは次回のレッスンで詳しく解説するから、今は『こんなパターンもあるんやな』くらいで見ておいてくれ」
+
+**👩‍💻 ユーザー：** 「はい！」
 
 ```php
 public function execute(Task $task, User $user): Task
@@ -867,7 +1557,7 @@ public function execute(Task $task, User $user): Task
 
 **👩‍💻 ユーザー：** 「catch の中で `throw $e` してますね」
 
-**🐘 ガネーシャ：** 「せや。ロールバックした後、例外を上に投げ直しとる。握りつぶしてへんのがポイントや」
+**🐘 ガネーシャ：** 「せや。ロールバックした後、例外を上に投げ直しとる。握りつぶしてへんのがポイントや。詳しくは次回のレッスンで教えたるから、今は『try-catch を使う場面もある』ってことだけ覚えといてな」
 
 ---
 
@@ -942,21 +1632,30 @@ public function execute(Task $task, User $user): Task
 │     → Laravel のデフォルト処理と変わらない                  │
 │     → むしろ正しいステータスコードが返らなくなる            │
 │                                                             │
-│  2️⃣ 握りつぶしは絶対ダメ                                    │
+│  2️⃣ catch は Laravel のデフォルトより「優先」される         │
+│     → 自分で catch すると、Laravel の自動処理がスキップ    │
+│     → 自動ログ記録もされなくなる！                          │
+│                                                             │
+│  3️⃣ Exception は「すべての例外の親」（Lesson6-4 の復習）    │
+│     → catch (Exception $e) は全部捕まえてしまう            │
+│     → 本来 404 のエラーも 500 になってしまう               │
+│                                                             │
+│  4️⃣ 握りつぶしは絶対ダメ                                    │
 │     → catch するなら最低限ログを記録する                    │
 │     → または throw $e で投げ直す                            │
 │                                                             │
-│  3️⃣ return vs throw                                         │
+│  5️⃣ return vs throw                                         │
 │     → return は無視できる（チェック忘れるとバグ）           │
 │     → throw は無視できない（確実にエラーを伝える）          │
 │                                                             │
-│  4️⃣ UseCase / Service では throw だけ                       │
+│  6️⃣ UseCase / Service では throw だけ                       │
 │     → try-catch は書かない                                  │
 │     → response() も返さない                                 │
 │     → Laravel が自動で処理してくれる                        │
 │                                                             │
-│  5️⃣ try-catch が必要な場面は限られる                        │
+│  7️⃣ try-catch が必要な場面は限られる                        │
 │     → 外部API連携（失敗しても続けたい）                     │
+│     → 特定エラー時の通知                                    │
 │     → DBトランザクション（ロールバック）                    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -1005,8 +1704,8 @@ public function store(Request $request, Project $project)
 **問題点：**
 
 1. **try-catch が不要** → Laravel のデフォルトと変わらない
-2. **ログを記録していない** → 何が起きたか分からない
-3. **全部 500 になる** → QueryException なども 500 になってしまう
+2. **ログを記録していない** → catch が優先されるので、Laravel の自動ログ記録もされない
+3. **全部 500 になる** → Exception は「すべての例外の親」なので、QueryException なども全部 500 になってしまう
 
 **修正版（try-catch を削除）：**
 
@@ -1152,7 +1851,7 @@ class UpdateTaskUseCase
 | 6-1         | ステータスコードとは         | 200, 400, 404, 500 などの意味                |
 | 6-2         | Laravel が自動でやること     | Route Model Binding, FormRequest, APP_DEBUG  |
 | 6-3         | 自分で書くエラーハンドリング | 403, 409 の実装                              |
-| 6-4         | try-catch の基本             | try-catch の概念、Laravel の自動処理         |
+| 6-4         | try-catch の基本             | try-catch の概念、例外の階層構造、複数 catch |
 | **6-5**     | **UseCase での throw**       | **return vs throw、UseCase では throw だけ** |
 | 6-6（次回） | トランザクション             | 複数テーブル更新を安全に                     |
 
