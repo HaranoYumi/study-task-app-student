@@ -200,7 +200,7 @@ class TaskController extends ApiController
             ], 409);
         }
 
-        $task->update(['status' => 'done']);
+        $task->updat(['status' => 'done']);
         $task->load('createdBy');
 
         return new TaskResource($task);
