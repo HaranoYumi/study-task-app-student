@@ -22,12 +22,12 @@ class TaskSeeder extends Seeder
 
         // ECサイトプロジェクトのタスク（5件）
 
-        // オーナーが完了したタスク
+        // オーナーのタスク（編集可能）
         Task::create([
             'project_id' => $project1->id,
             'title' => '開発環境のセットアップ',
             'description' => '必要なツールと依存関係をインストールする',
-            'status' => 'done',
+            'status' => 'todo',
             'created_by' => $owner->id,
         ]);
 
@@ -84,4 +84,3 @@ class TaskSeeder extends Seeder
         ]);
     }
 }
-
