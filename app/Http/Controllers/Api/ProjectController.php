@@ -9,6 +9,7 @@ use App\Models\Project;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\UseCases\Project\CreateProjectUseCase;
 
 /**
  * Lesson6-3: After版
@@ -18,6 +19,13 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
  */
 class ProjectController extends ApiController
 {
+    private CreateProjectUseCase $createProjectUseCase;
+
+    public function __construct(CreateProjectUseCase $createProjectUseCase)
+    {
+        $this->createProjectUseCase = $createProjectUseCase;
+    }
+
     /**
      * 自分が所属しているプロジェクト一覧を返す
      */
@@ -37,12 +45,7 @@ class ProjectController extends ApiController
      */
     public function store(StoreProjectRequest $request): JsonResponse
     {
-        $project = Project::create($request->validated());
-
-        // 作成者をオーナーとして追加
-        $project->users()->attach($request->user()->id, [
-            'role' => 'project_owner',
-        ]);
+        $project = $this->createProjectUseCase->execute($request->validated(), $request->user());
 
         return (new ProjectResource($project))
             ->additional(['message' => 'プロジェクトを作成しました'])

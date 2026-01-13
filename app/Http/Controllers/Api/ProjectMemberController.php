@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use App\Http\Requests\Membership\AddMemberRequest;
+use App\Models\User;
 
 class ProjectMemberController extends ApiController
 {
@@ -35,6 +36,15 @@ class ProjectMemberController extends ApiController
 
         // 3. Resourceに渡すだけ
         return ProjectMemberResource::collection($members);
+    }
+
+    public function show(Request $request, Project $project, User $user): ProjectMemberResource|JsonResponse
+    {
+        $member = $project->users()
+            ->where('users.id', $user->id)
+            ->first();
+
+        return new ProjectMemberResource($member);
     }
 
     /**

@@ -45,6 +45,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Members（✅ Route Model Binding使用）
     Route::get('/projects/{project}/members', [ProjectMemberController::class, 'index']);
+    Route::get('/projects/{project}/members/{user}', [ProjectMemberController::class, 'show']);
     Route::post('/projects/{project}/members', [ProjectMemberController::class, 'store']);
     Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
 });
