@@ -39,56 +39,50 @@ class ProjectMemberController extends ApiController
 
     /**
      * プロジェクトにメンバーを追加
+     * POST /api/projects/{project}/members
      */
-    public function store(AddMemberRequest $request, Project $project): JsonResponse
+    public function store(Request $request, Project $project)
     {
-        // 自分がowner/adminかチェック（users()リレーションを使用）
-        $myUser = $project->users()
+        // 権限チェック：オーナーまたは管理者か
+        $currentUser = $project->users()
             ->where('users.id', $request->user()->id)
             ->first();
 
-        if (!$myUser || !in_array($myUser->pivot->role, ['project_owner', 'project_admin'])) {
+        // メンバーじゃない
+        if (!$currentUser) {
             return response()->json([
-                'message' => 'メンバーを追加する権限がありません（オーナーまたは管理者のみ）',
+                'message' => 'このプロジェクトにアクセスする権限がありません'
             ], 403);
         }
 
-        // バリデーション
-        $validated = $request->validated();
+        // メンバーだけど、オーナー/管理者じゃない
+        if (!in_array($currentUser->pivot->role, ['project_owner', 'project_admin'])) {
+            return response()->json([
+                'message' => 'メンバーを追加する権限がありません（オーナーまたは管理者のみ）'
+            ], 403);
+        }
 
-        // デフォルトロール設定
-        $role = $request->role ?? 'project_member';
+        // 重複チェック（409）
+        $exists = $project->users()
+            ->where('users.id', $request->user_id)
+            ->exists();
 
-        // 既にメンバーかチェック（users()リレーションを使用）
-        $existingUser = $project->users()
+        if ($exists) {
+            return response()->json([
+                'message' => 'このユーザーは既にプロジェクトのメンバーです'
+            ], 409);
+        }
+
+        // メンバー追加
+        $project->users()->attach($request->user_id, [
+            'role' => $request->role ?? 'project_member'
+        ]);
+
+        $newMember = $project->users()
             ->where('users.id', $request->user_id)
             ->first();
 
-        if ($existingUser) {
-            return response()->json([
-                'message' => 'このユーザーは既にプロジェクトのメンバーです',
-            ], 409);
-        }
-
-        // 自分自身を追加しようとしていないかチェック
-        if ($validated['user_id'] == $request->user()->id) {
-            return response()->json([
-                'message' => 'あなたは既にこのプロジェクトのメンバーです',
-            ], 409);
-        }
-
-        // メンバーシップ作成（users()リレーションのattach()を使用）
-        $project->users()->attach($validated['user_id'], [
-            'role' => $role,
-        ]);
-
-        // ユーザー情報を含めて返す
-        $user = $project->users()->find($validated['user_id']);
-
-        return response()->json([
-            'message' => 'メンバーを追加しました',
-            'membership' => new ProjectMemberResource($user),
-        ], 201);
+        return response()->json($newMember, 201);
     }
 
     /**
