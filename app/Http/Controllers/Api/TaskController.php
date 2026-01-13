@@ -179,27 +179,26 @@ class TaskController extends ApiController
     /**
      * タスクを完了（doing → done）
      */
-    public function complete(Request $request, Task $task): TaskResource|JsonResponse
+    public function complete(Request $request, $id): TaskResource|JsonResponse
     {
-        // 自分が所属しているかチェック
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
+        // try catchのコメントアウトを解除してデフォルトのLaravelのエラーとどう違うか確認しよう
+        try {
+            $task = Task::findOrFail($id);
 
-        if (!$isMember) {
+            //  ✅ 意図的なタイポ（updae）でエラー
+            $task->update(['status' => 'done']);
+            $task->load('createdBy');
+
+            return new TaskResource($task);
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
+                'message' => 'タスク完了エラー',
+                'error' => $e->getMessage(),
+            ], 500);
         }
 
-        // 状態チェック
-        if ($task->status !== 'doing') {
-            return response()->json([
-                'message' => '作業中のタスクのみ完了できます',
-            ], 409);
-        }
-
+        // デフォルトのLaravelのエラーがどうか確認しよう
+        //  ✅ 意図的なタイポ（updae）でエラー
         $task->updat(['status' => 'done']);
         $task->load('createdBy');
 

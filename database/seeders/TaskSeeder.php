@@ -20,27 +20,27 @@ class TaskSeeder extends Seeder
 
         $project1 = Project::where('name', 'ECサイトリニューアルプロジェクト')->first();
 
-        // ECサイトプロジェクトのタスク（5件）
+        // ECサイトプロジェクトのタスク（全て作業中状態）
 
-        // オーナーのタスク（編集可能）
+        // オーナーのタスク（complete可能）
         Task::create([
             'project_id' => $project1->id,
             'title' => '開発環境のセットアップ',
             'description' => '必要なツールと依存関係をインストールする',
-            'status' => 'todo',
+            'status' => 'doing',
             'created_by' => $owner->id,
         ]);
 
-        // 管理者が完了したタスク
+        // 管理者のタスク（complete可能）
         Task::create([
             'project_id' => $project1->id,
             'title' => 'データベース設計',
             'description' => 'ER図とマイグレーションファイルを作成する',
-            'status' => 'done',
+            'status' => 'doing',
             'created_by' => $admin->id,
         ]);
 
-        // 管理者が作業中のタスク
+        // 管理者のタスク（complete可能）
         Task::create([
             'project_id' => $project1->id,
             'title' => '認証機能の実装',
@@ -49,12 +49,12 @@ class TaskSeeder extends Seeder
             'created_by' => $admin->id,
         ]);
 
-        // メンバーの未完了タスク（削除禁止チェック用）
+        // メンバーのタスク（complete可能）
         Task::create([
             'project_id' => $project1->id,
             'title' => 'APIドキュメントの作成',
             'description' => '全てのAPIエンドポイントをドキュメント化する',
-            'status' => 'todo',
+            'status' => 'doing',
             'created_by' => $member->id,
         ]);
 
@@ -66,12 +66,12 @@ class TaskSeeder extends Seeder
             'created_by' => $member->id,
         ]);
 
-        // 追加タスク（バラエティ豊かに）
+        // 追加タスク（complete可能）
         Task::create([
             'project_id' => $project1->id,
             'title' => '商品一覧ページの実装',
             'description' => 'フィルター機能とページネーションを含む',
-            'status' => 'todo',
+            'status' => 'doing',
             'created_by' => $owner->id,
         ]);
 
@@ -79,8 +79,10 @@ class TaskSeeder extends Seeder
             'project_id' => $project1->id,
             'title' => 'カート機能の実装',
             'description' => '商品の追加・削除・数量変更機能',
-            'status' => 'todo',
+            'status' => 'doing',
             'created_by' => $admin->id,
         ]);
     }
 }
+
+
