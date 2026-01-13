@@ -7,6 +7,9 @@ use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskRequest;
+
 
 /**
  * Lesson6-2用：敢えて冗長なコード（Before版）
@@ -74,6 +77,7 @@ class TaskController extends ApiController
     {
         // ❌ 冗長：Route Model Bindingを使わず、手動でチェック
         $task = Task::find($id);
+        // $task = Task::findOrFail($id);
 
         if (!$task) {
             return response()->json([
@@ -83,6 +87,15 @@ class TaskController extends ApiController
 
         return response()->json($task);
     }
+
+    /**
+     * タスク詳細を取得
+     */
+    // public function show(Task $task)  // ← Taskモデルを直接受け取る！
+    // {
+    //     // 存在しないIDの場合、ここに来る前に自動で404が返る！
+    //     return response()->json($task);
+    // }
 
     /**
      * タスク更新
