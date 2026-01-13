@@ -65,7 +65,7 @@ php artisan serve
 **ログインユーザー:** オーナー（`owner@example.com`）
 
 ```
-PUT http://localhost:8000/api/tasks/1
+PUT http://localhost/api/tasks/1
 Authorization: Bearer {owner_token}
 Content-Type: application/json
 
@@ -90,7 +90,7 @@ Content-Type: application/json
 **ログインユーザー:** オーナー（`owner@example.com`）
 
 ```
-DELETE http://localhost:8000/api/tasks/1
+DELETE http://localhost/api/tasks/1
 Authorization: Bearer {owner_token}
 
 → 期待される結果: 409 Conflict
@@ -111,7 +111,7 @@ Authorization: Bearer {owner_token}
 **ログインユーザー:** 管理者（`admin@example.com`）
 
 ```
-POST http://localhost:8000/api/tasks/2/start
+POST http://localhost/api/tasks/2/start
 Authorization: Bearer {admin_token}
 
 → 期待される結果: 409 Conflict
@@ -131,7 +131,7 @@ Authorization: Bearer {admin_token}
 **ログインユーザー:** 管理者（`admin@example.com`）
 
 ```
-POST http://localhost:8000/api/tasks/3/start
+POST http://localhost/api/tasks/3/start
 Authorization: Bearer {admin_token}
 
 → 期待される結果: 409 Conflict
@@ -151,7 +151,7 @@ Authorization: Bearer {admin_token}
 **ログインユーザー:** 一般メンバー（`member@example.com`）
 
 ```
-POST http://localhost:8000/api/tasks/4/complete
+POST http://localhost/api/tasks/4/complete
 Authorization: Bearer {member_token}
 
 → 期待される結果: 409 Conflict
@@ -172,7 +172,7 @@ Authorization: Bearer {member_token}
 **ログインユーザー:** 一般メンバー（`member@example.com`）
 
 ```
-POST http://localhost:8000/api/tasks/5/complete
+POST http://localhost/api/tasks/5/complete
 Authorization: Bearer {member_token}
 
 → 期待される結果: 200 OK
@@ -196,7 +196,7 @@ Authorization: Bearer {member_token}
 **ログインユーザー:** オーナー（`owner@example.com`）
 
 ```
-POST http://localhost:8000/api/tasks/6/start
+POST http://localhost/api/tasks/6/start
 Authorization: Bearer {owner_token}
 
 → 期待される結果: 200 OK
@@ -222,7 +222,7 @@ Authorization: Bearer {owner_token}
 **ログインユーザー:** 非メンバー（`outsider@example.com`）
 
 ```
-GET http://localhost:8000/api/tasks/1
+GET http://localhost/api/tasks/1
 Authorization: Bearer {outsider_token}
 
 → 期待される結果: 403 Forbidden
@@ -242,7 +242,7 @@ Authorization: Bearer {outsider_token}
 **ログインユーザー:** 非メンバー（`outsider@example.com`）
 
 ```
-PUT http://localhost:8000/api/tasks/7
+PUT http://localhost/api/tasks/7
 Authorization: Bearer {outsider_token}
 Content-Type: application/json
 
@@ -266,7 +266,7 @@ Content-Type: application/json
 **ログインユーザー:** 一般メンバー（`member@example.com`）
 
 ```
-POST http://localhost:8000/api/projects/1/members
+POST http://localhost/api/projects/1/members
 Authorization: Bearer {member_token}
 Content-Type: application/json
 
@@ -291,7 +291,7 @@ Content-Type: application/json
 **ログインユーザー:** 管理者（`admin@example.com`）
 
 ```
-POST http://localhost:8000/api/projects/1/members
+POST http://localhost/api/projects/1/members
 Authorization: Bearer {admin_token}
 Content-Type: application/json
 
