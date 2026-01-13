@@ -11,28 +11,34 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
+use App\UseCases\Task\GetProjectTasksUseCase;
+use App\UseCases\Task\CreateTaskUseCase;
+use App\UseCases\Task\GetTaskUseCase;
+use App\UseCases\Task\UpdateTaskUseCase;
+use App\UseCases\Task\DeleteTaskUseCase;
+use App\UseCases\Task\StartTaskUseCase;
+use App\UseCases\Task\CompleteTaskUseCase;
+
 class TaskController extends ApiController
 {
+    public function __construct(
+        private GetProjectTasksUseCase $getProjectTasksUseCase,
+        private CreateTaskUseCase $createTaskUseCase,
+        private GetTaskUseCase $getTaskUseCase,
+        private UpdateTaskUseCase $updateTaskUseCase,
+        private DeleteTaskUseCase $deleteTaskUseCase,
+        private StartTaskUseCase $startTaskUseCase,
+        private CompleteTaskUseCase $completeTaskUseCase,
+    ) {}
     /**
      * プロジェクトのタスク一覧を取得
      */
     public function index(Request $request, Project $project): AnonymousResourceCollection|JsonResponse
     {
-        // 自分が所属しているかチェック
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        $tasks = $project->tasks()
-            ->with('createdBy')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $tasks = $this->getProjectTasksUseCase->execute(
+            $request->user(),
+            $project,
+        );
 
         return TaskResource::collection($tasks);
     }
@@ -42,26 +48,14 @@ class TaskController extends ApiController
      */
     public function store(StoreTaskRequest $request, Project $project): JsonResponse
     {
-        // 自分が所属しているかチェック
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        $task = Task::create([
-            'project_id' => $project->id,
-            'title' => $request->title,
-            'description' => $request->description,
-            'status' => 'todo',
-            'created_by' => $request->user()->id,
-        ]);
-
-        $task->load('createdBy');
+        $data = $request->validated();
+        
+        $task = $this->createTaskUseCase->execute(
+            title: $data['title'],
+            description: $data['description'],
+            project: $project,
+            user: $request->user(),
+        );
 
         return (new TaskResource($task))
             ->additional(['message' => 'タスクを作成しました'])
@@ -74,19 +68,11 @@ class TaskController extends ApiController
      */
     public function show(Request $request, Task $task): TaskResource|JsonResponse
     {
-        // 自分が所属しているかチェック
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        $task->load(['createdBy', 'project']);
+        // タスク詳細を取得
+        $task = $this->getTaskUseCase->execute(
+            user: $request->user(),
+            task : $task,
+        );
 
         return new TaskResource($task);
     }
@@ -96,20 +82,14 @@ class TaskController extends ApiController
      */
     public function update(UpdateTaskRequest $request, Task $task): TaskResource|JsonResponse
     {
-        // 自分が所属しているかチェック
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
+        $data = $request->validated();
 
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        $task->update($request->only(['title', 'description', 'status']));
-        $task->load('createdBy');
+        // タスク更新
+        $task = $this->updateTaskUseCase->execute(
+            user: $request->user(),
+            task: $task,
+            data: $data,
+        );
 
         return (new TaskResource($task))
             ->additional(['message' => 'タスクを更新しました']);
@@ -120,19 +100,11 @@ class TaskController extends ApiController
      */
     public function destroy(Request $request, Task $task): JsonResponse
     {
-        // 自分が所属しているかチェック
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        $task->delete();
+        // タスク削除
+        $this->deleteTaskUseCase->execute(
+            user: $request->user(),
+            task : $task,
+        );
 
         return response()->json([
             'message' => 'タスクを削除しました',
@@ -144,28 +116,12 @@ class TaskController extends ApiController
      */
     public function start(Request $request, Task $task): TaskResource|JsonResponse
     {
-        // 自分が所属しているかチェック
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        // 状態チェック
-        if ($task->status !== 'todo') {
-            return response()->json([
-                'message' => '未着手のタスクのみ開始できます',
-            ], 409);
-        }
-
-        $task->update(['status' => 'doing']);
-        $task->load('createdBy');
-
+        // タスク詳細を取得
+        $task = $this->startTaskUseCase->execute(
+            user: $request->user(),
+            task : $task,
+        );
+        
         return new TaskResource($task);
     }
 
@@ -174,28 +130,13 @@ class TaskController extends ApiController
      */
     public function complete(Request $request, Task $task): TaskResource|JsonResponse
     {
-        // 自分が所属しているかチェック
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
-            return response()->json([
-                'message' => 'このプロジェクトにアクセスする権限がありません',
-            ], 403);
-        }
-
-        // 状態チェック
-        if ($task->status !== 'doing') {
-            return response()->json([
-                'message' => '作業中のタスクのみ完了できます',
-            ], 409);
-        }
-
-        $task->update(['status' => 'done']);
-        $task->load('createdBy');
+        // タスク詳細を取得
+        $task = $this->completeTaskUseCase->execute(
+            user: $request->user(),
+            task : $task,
+        );
 
         return new TaskResource($task);
     }
 }
+
