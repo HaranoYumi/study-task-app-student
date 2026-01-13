@@ -112,4 +112,3 @@ class TaskSeeder extends Seeder
         ]);
     }
 }
-
