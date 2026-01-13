@@ -18,11 +18,12 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 class ProjectController extends ApiController
 {
     /**
-     * プロジェクト一覧を取得
+     * プロジェクト一覧を取得（ログインユーザーが所属しているもののみ）
      */
     public function index(): AnonymousResourceCollection
     {
-        $projects = Project::all();
+        // ログインユーザーが所属しているプロジェクトのみ取得（usersリレーションも一緒に取得）
+        $projects = auth()->user()->projects()->with('users')->get();
         return ProjectResource::collection($projects);
     }
 
@@ -42,6 +43,8 @@ class ProjectController extends ApiController
     public function show(Project $project): ProjectResource
     {
         // ✅ Route Model Bindingで自動的に404チェック
+        // タスクとユーザーをロード
+        $project->load(['tasks.createdBy', 'users']);
         return new ProjectResource($project);
     }
 

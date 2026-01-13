@@ -4,51 +4,91 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Resources\ProjectMemberResource;
 use App\Models\Project;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\Http\Requests\Membership\AddMemberRequest;
 
-/**
- * Lesson6-3: After版 - Laravelの機能を活用したスッキリしたコード
- * - Route Model Binding で404チェックを自動化
- * - シンプルなバリデーション
- * - ApiResource でレスポンスを整形
- */
 class ProjectMemberController extends ApiController
 {
     /**
      * プロジェクトのメンバー一覧を取得
      */
-    public function index(Project $project): AnonymousResourceCollection
+    public function index(Request $request, Project $project): AnonymousResourceCollection|JsonResponse
     {
-        // ✅ Route Model Bindingで自動的に404チェック
-        $members = $project->members;
+        // 自分が所属しているかチェック
+        $isMember = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->exists();
+
+        if (!$isMember) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません',
+            ], 403);
+        }
+
+        // 2. メンバー一覧の取得
+        // withPivot に 'id' を含めることで、Membership の ID も取得できます
+        $members = $project->users()
+            ->withPivot('id', 'role')
+            ->get();
+
+        // 3. Resourceに渡すだけ
         return ProjectMemberResource::collection($members);
     }
 
     /**
      * プロジェクトにメンバーを追加
      */
-    public function store(Request $request, Project $project): ProjectMemberResource
+    public function store(AddMemberRequest $request, Project $project): JsonResponse
     {
-        // ✅ Route Model Bindingで$projectは存在保証済み
+        // 自分がowner/adminかチェック（users()リレーションを使用）
+        $myUser = $project->users()
+            ->where('users.id', $request->user()->id)
+            ->first();
+
+        if (!$myUser || !in_array($myUser->pivot->role, ['project_owner', 'project_admin'])) {
+            return response()->json([
+                'message' => 'メンバーを追加する権限がありません（オーナーまたは管理者のみ）',
+            ], 403);
+        }
 
         // バリデーション
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
+        $validated = $request->validated();
+
+        // デフォルトロール設定
+        $role = $request->role ?? 'project_member';
+
+        // 既にメンバーかチェック（users()リレーションを使用）
+        $existingUser = $project->users()
+            ->where('users.id', $request->user_id)
+            ->first();
+
+        if ($existingUser) {
+            return response()->json([
+                'message' => 'このユーザーは既にプロジェクトのメンバーです',
+            ], 409);
+        }
+
+        // 自分自身を追加しようとしていないかチェック
+        if ($validated['user_id'] == $request->user()->id) {
+            return response()->json([
+                'message' => 'あなたは既にこのプロジェクトのメンバーです',
+            ], 409);
+        }
+
+        // メンバーシップ作成（users()リレーションのattach()を使用）
+        $project->users()->attach($validated['user_id'], [
+            'role' => $role,
         ]);
 
-        // ユーザーを取得（existsで存在確認済み）
-        $user = User::findOrFail($validated['user_id']);
+        // ユーザー情報を含めて返す
+        $user = $project->users()->find($validated['user_id']);
 
-        // メンバーを追加
-        $project->members()->attach($user->id);
-
-        // 追加したメンバーを再取得（pivot情報を含む）
-        $member = $project->members()->where('users.id', $user->id)->first();
-
-        return new ProjectMemberResource($member);
+        return response()->json([
+            'message' => 'メンバーを追加しました',
+            'membership' => new ProjectMemberResource($user),
+        ], 201);
     }
 
     /**
