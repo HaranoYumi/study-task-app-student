@@ -6,16 +6,26 @@
 
 ## 🌿 ブランチの準備
 
-この講座を進める前に、適切なブランチに切り替えてください。
+この講座を進める前に、リモートの全てのブランチを取得してから、適切なブランチに切り替えてください。
 
 ```bash
-git checkout main
+# リモートの全てのブランチ情報を取得
+git fetch origin
+
+# Lesson用のブランチに切り替え
+git checkout lesson_console_practice
+
+# リモートの最新状態に更新
+git pull origin lesson_console_practice
+```
+
+> **💡 Tip**: すでに `lesson_console_practice` ブランチにいる場合は、この手順をスキップできます。
+
+
 git pull origin main
 
 git fetch origin lesson_console_practice
-git checkout lesson_console_practice
 git pull origin lesson_console_practice
-```
 
 > **💡 Tip**: すでに `lesson5-1` ブランチにいる場合は、この手順をスキップできます。
 
