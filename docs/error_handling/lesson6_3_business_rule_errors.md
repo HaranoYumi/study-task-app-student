@@ -4,6 +4,53 @@
 
 ---
 
+## 🌿 ブランチ作成と準備
+
+課題に取り組む前に、Lesson 用のブランチを作成してください：
+
+```bash
+# 現在のブランチを確認
+git branch
+
+# メインブランチに切り替え
+git checkout main
+
+# 最新の状態に更新（重要：必ずpullすること）
+git pull origin main
+
+# Lesson用のブランチを作成
+git checkout -b lesson6-3
+```
+
+**推奨：** 各 Lesson ごとに専用のブランチを作成することで、作業を整理しやすくなります。
+
+### データベースの準備
+
+データベースを初期状態に戻してください：
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+### フロントエンドの再起動
+
+Viteの開発サーバーを再起動してください：
+
+```bash
+# Ctrl+Cで現在のプロセスを停止してから
+sail npm run dev
+```
+
+### ログ設定の確認
+
+`.env`ファイルで、ログチャンネルが`daily`になっていることを確認してください：
+
+```
+LOG_CHANNEL=daily
+```
+
+---
+
 ## 🎭 プロローグ：間違ったエラーコード
 
 **👩‍💻 ユーザー：** 「ガネーシャさん、前回教えてもらった通りに Route Model Binding と FormRequest を使ったら、コードがめっちゃスッキリしました！」

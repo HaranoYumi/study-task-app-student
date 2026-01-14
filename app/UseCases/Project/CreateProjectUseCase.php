@@ -4,6 +4,7 @@ namespace App\UseCases\Project;
 
 use App\Models\Project;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 /**
  * プロジェクト作成UseCase
@@ -19,20 +20,27 @@ class CreateProjectUseCase
      */
     public function execute(array $data, User $user): Project
     {
-        // プロジェクト作成
-        $project = Project::create([
-            'name' => $data['name'],
-            'is_archived' => $data['is_archived'] ?? false,
-        ]);
+        return DB::transaction(function () use ($data, $user) {
+            try {
+                // プロジェクト作成
+                $project = Project::create([
+                    'name' => $data['name'],
+                    'is_archived' => $data['is_archived'] ?? false,
+                ]);
 
-        // 作成者を自動的にオーナーとして追加
-        $project->users()->attach($user->id, [
-            'role' => 'project_owner',
-        ]);
+                // 作成者を自動的にオーナーとして追加
+                $project->users()->attach($user->id, [
+                    'role' => 'project_owner',
+                ]);
 
-        // リレーションをロード
-        $project->load(['users']);
+                // リレーションをロード
+                $project->load(['users']);
 
-        return $project;
+                return $project;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw new \Exception($e->getMessage());
+            }
+        });
     }
 }

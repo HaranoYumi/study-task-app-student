@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Sentry統合
-        // Integration::handles($exceptions);
+        Integration::handles($exceptions);
 
         // 研修用に必要に応じて以下のコメントアウトの切り替え（コメントアウト時はLaravelのデフォルトハンドラーが使用される）
 
