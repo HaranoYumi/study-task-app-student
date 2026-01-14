@@ -22,10 +22,6 @@ git pull origin lesson6
 **推奨：** 各 Lesson ごとに専用のブランチで作業することで、作業を整理しやすくなります。
 
 ### データベースの準備
-
-データベースを初期状態に戻してください：
-
-```bash
 sail artisan migrate:refresh --seed
 ```
 

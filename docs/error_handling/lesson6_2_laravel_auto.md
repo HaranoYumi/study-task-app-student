@@ -421,7 +421,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 ```bash
 # 認証トークンなしでアクセス
-GET /api/projects
+GET /api/tasks
 (Authorization ヘッダーなし)
 
 → 401 Unauthorized  ← 自動で返る！
