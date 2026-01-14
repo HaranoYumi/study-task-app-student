@@ -13,14 +13,11 @@
 git fetch origin
 
 # Lesson用のブランチに切り替え
-git checkout lesson6
+git checkout lesson6-10
 
 # リモートの最新状態に更新
-git pull origin lesson6
+git pull origin lesson6-10
 ```
-
-**推奨：** 各 Lesson ごとに専用のブランチで作業することで、作業を整理しやすくなります。
-# 最新の状態に更新（重要：必ずpullすること）
 
 **推奨：** 各 Lesson ごとに専用のブランチで作業することで、作業を整理しやすくなります。
 
