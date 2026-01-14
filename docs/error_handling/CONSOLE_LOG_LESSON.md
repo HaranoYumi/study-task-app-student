@@ -20,8 +20,6 @@ git pull origin lesson_console_practice
 ```
 
 > **💡 Tip**: すでに `lesson_console_practice` ブランチにいる場合は、この手順をスキップできます。
-
-
 git pull origin main
 
 git fetch origin lesson_console_practice
