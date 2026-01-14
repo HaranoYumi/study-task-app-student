@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import ApiError from "@/Components/ApiError.vue";
 import Pagination from "@/Components/Pagination.vue";
 import { useApiError } from "@/composables/useApiError";
 
@@ -16,7 +17,7 @@ const currentPage = ref(1);
 const perPage = ref(15);
 
 // エラーハンドリング用のComposable
-const { error, handleError, clearError } = useApiError();
+const { error, requestId, statusCode, handleError, clearError } = useApiError();
 
 // デバウンス用タイマー
 let searchTimeout = null;
@@ -193,27 +194,13 @@ onMounted(() => {
         </div>
 
         <!-- エラー -->
-        <div
-          v-else-if="error"
-          class="backdrop-blur-lg bg-red-500/10 border border-red-300/50 rounded-2xl p-6 shadow-xl"
-        >
-          <div class="flex items-center gap-3">
-            <svg
-              class="w-6 h-6 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p class="text-red-800 font-medium">{{ error }}</p>
-          </div>
-        </div>
+        <ApiError
+          v-if="error"
+          :message="error"
+          :request-id="requestId"
+          :status-code="statusCode"
+          fallback-message="ユーザーの読み込みに失敗しました"
+        />
 
         <!-- ユーザー一覧テーブル -->
         <div

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { useToast } from "vue-toastification";
 import axios from "axios";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import ApiError from "@/Components/ApiError.vue";
 import { useApiError } from "@/composables/useApiError";
 
 const toast = useToast();
@@ -20,7 +21,7 @@ const activeTab = ref("tasks");
 const creatingTask = ref(false);
 
 // エラーハンドリング用のComposable
-const { error, handleError, clearError } = useApiError();
+const { error, requestId, statusCode, handleError, clearError } = useApiError();
 const memberError = ref(null);
 
 // メンバー追加用の状態
@@ -376,27 +377,13 @@ onMounted(() => {
         </div>
 
         <!-- エラー -->
-        <div
+        <ApiError
           v-else-if="error"
-          class="backdrop-blur-lg bg-red-500/10 border border-red-300/50 rounded-2xl p-6 shadow-xl"
-        >
-          <div class="flex items-center gap-3">
-            <svg
-              class="w-6 h-6 text-red-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <p class="text-red-800 font-medium">{{ error }}</p>
-          </div>
-        </div>
+          :message="error"
+          :request-id="requestId"
+          :status-code="statusCode"
+          fallback-message="プロジェクトの読み込みに失敗しました"
+        />
 
         <!-- タブメニュー -->
         <div v-else class="mb-8">
