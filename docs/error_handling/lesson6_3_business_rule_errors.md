@@ -217,90 +217,25 @@ public function update(UpdateTaskRequest $request, Task $task)
 }
 ```
 
-**📍 Postman で試すエンドポイント**
-
-```http
-PUT http://localhost/api/tasks/1
-Authorization: Bearer {your_token}
-Content-Type: application/json
-
-{
-  "title": "タイトル変更したい"
-}
-```
-
-**使用するダミーデータ:**
-
--   **タスク ID: 1** → 「開発環境のセットアップ」（status: done）
--   **ログインユーザー:** owner@example.com
-
-**期待される結果:** 409 Conflict
-
-```json
-{
-    "message": "完了済みのタスクは編集できません"
-}
-```
-
 **👩‍💻 ユーザー：** 「あれ、思ったよりシンプルですね」
 
 **🐘 ガネーシャ：** 「せや。if 文で条件チェックして、ダメなら 409 を返す。それだけや」
 
----
+#### テストしてみよう
 
-### 🎯 実装例 1-2：完了済みタスクは削除できない
-
-**🐘 ガネーシャ：** 「編集と同じで、完了済みタスクは削除もできへんで」
-
-#### 仕様
-
-```
-・タスクのステータスが「done」の場合、削除できない
-・削除しようとしたら 409 Conflict を返す
-```
-
-#### 実装
-
-```php
-// TaskController.php
-
-public function destroy(Task $task)
+```bash
+# 完了済みタスクを編集しようとする
+PUT /api/tasks/1
 {
-    // ビジネスルールチェック：完了済みタスクは削除できない
-    if ($task->status === 'done') {
-        return response()->json([
-            'message' => '完了済みのタスクは削除できません'
-        ], 409);
-    }
+  "title": "タイトル変更したい"
+}
 
-    $task->delete();
-    return response()->json(['message' => 'タスクを削除しました']);
+# タスク1のステータスが「done」の場合
+→ 409 Conflict
+{
+  "message": "完了済みのタスクは編集できません"
 }
 ```
-
-**📍 Postman で試すエンドポイント**
-
-```http
-DELETE http://localhost/api/tasks/1
-Authorization: Bearer {your_token}
-```
-
-**使用するダミーデータ:**
-
--   **タスク ID: 1** → 「開発環境のセットアップ」（status: done）
--   **ログインユーザー:** owner@example.com
-
-**期待される結果:** 409 Conflict
-
-```json
-{
-    "message": "完了済みのタスクは削除できません"
-}
-```
-
-**👩‍💻 ユーザー：** 「これも同じパターンですね！」
-
-**🐘 ガネーシャ：** 「せや。完了したタスクは履歴として残しとくんや」
 
 ---
 
@@ -360,30 +295,6 @@ public function start(Task $task)
 }
 ```
 
-**📍 Postman で試すエンドポイント（異常系）**
-
-**ケース 1：作業中のタスクを再開始しようとする**
-
-```http
-POST http://localhost/api/tasks/3/start
-Authorization: Bearer {your_token}
-```
-
--   **タスク ID: 3** → 「認証機能の実装」（status: doing）
--   **期待結果:** 409 Conflict「未着手のタスクのみ開始できます」
-
-**ケース 2：完了済みタスクを開始しようとする**
-
-```http
-POST http://localhost/api/tasks/2/start
-Authorization: Bearer {your_token}
-```
-
--   **タスク ID: 2** → 「データベース設計」（status: done）
--   **期待結果:** 409 Conflict「未着手のタスクのみ開始できます」
-
----
-
 #### 実装：タスク完了（doing → done）
 
 ```php
@@ -406,20 +317,6 @@ public function complete(Task $task)
     return response()->json($task);
 }
 ```
-
-**📍 Postman で試すエンドポイント（異常系）**
-
-**ケース：未着手のタスクをいきなり完了しようとする**
-
-```http
-POST http://localhost/api/tasks/4/complete
-Authorization: Bearer {your_token}
-```
-
--   **タスク ID: 4** → 「API ドキュメントの作成」（status: todo）
--   **期待結果:** 409 Conflict「作業中のタスクのみ完了できます」
-
----
 
 **👩‍💻 ユーザー：** 「なるほど！それぞれのメソッドで『今のステータス』をチェックするんですね」
 
@@ -475,7 +372,7 @@ POST /api/tasks/2/complete
 
 ---
 
-### 🎯 実装例 3：プロジェクトのオーナーは最低 1 人必要 & 未完了タスクがあるメンバーは削除不可
+### 🎯 実装例 3：プロジェクトのオーナーは最低 1 人必要
 
 **🐘 ガネーシャ：** 「これはちょっと複雑や。メンバー削除の時に使う」
 
@@ -484,59 +381,36 @@ POST /api/tasks/2/complete
 ```
 ・プロジェクトには最低1人のオーナー（project_owner）が必要
 ・最後のオーナーを削除しようとしたら 409 Conflict を返す
-・未完了タスク（todo, doing）を持つメンバーは削除できない
-・削除しようとしたら 409 Conflict を返す
 ```
 
 #### 実装
 
 ```php
-// ProjectMemberController.php
+// MembershipController.php
 
 /**
- * プロジェクトからメンバーを削除
- * DELETE /api/projects/{project}/members/{user}
+ * メンバーを削除する
+ * DELETE /api/memberships/{membership}
  */
-public function destroy(Request $request, Project $project, $userId): JsonResponse
+public function destroy(Membership $membership)
 {
-    // 削除対象のユーザーを取得
-    $targetUser = $project->users()
-        ->where('users.id', $userId)
-        ->first();
+    $projectId = $membership->project_id;
 
-    if (!$targetUser) {
-        return response()->json([
-            'message' => 'User is not a member of this project.',
-        ], 404);
-    }
-
-    // ビジネスルールチェック1：最後のオーナーは削除不可
-    if ($targetUser->pivot->role === 'project_owner') {
-        $ownerCount = $project->users()
-            ->wherePivot('role', 'project_owner')
+    // ビジネスルールチェック：最後のオーナーは削除不可
+    if ($membership->role === 'project_owner') {
+        // このプロジェクトのオーナー数をカウント
+        $ownerCount = Membership::where('project_id', $projectId)
+            ->where('role', 'project_owner')
             ->count();
 
         if ($ownerCount <= 1) {
             return response()->json([
-                'message' => 'プロジェクトの最後のオーナーは削除できません'
+                'message' => 'プロジェクトには最低1人のオーナーが必要です'
             ], 409);
         }
     }
 
-    // ビジネスルールチェック2：未完了タスクがあるメンバーは削除不可
-    $hasIncompleteTasks = $project->tasks()
-        ->where('created_by', $userId)
-        ->whereIn('status', ['todo', 'doing'])
-        ->exists();
-
-    if ($hasIncompleteTasks) {
-        return response()->json([
-            'message' => '未完了のタスクがあるメンバーは削除できません'
-        ], 409);
-    }
-
-    // 削除実行
-    $project->users()->detach($userId);
+    $membership->delete();
 
     return response()->json([
         'message' => 'メンバーを削除しました'
@@ -544,7 +418,7 @@ public function destroy(Request $request, Project $project, $userId): JsonRespon
 }
 ```
 
-**👩‍💻 ユーザー：** 「削除する前に、オーナーが何人いるかと、未完了タスクがあるかをチェックするんですね」
+**👩‍💻 ユーザー：** 「削除する前に、オーナーが何人いるかチェックするんですね」
 
 **🐘 ガネーシャ：** 「せや。『削除した後に困ること』を事前にチェックする。これがビジネスルールの実装や」
 
@@ -554,15 +428,13 @@ public function destroy(Request $request, Project $project, $userId): JsonRespon
 
 **🐘 ガネーシャ：** 「ここまでの 409 パターンをまとめるで」
 
-| パターン                 | チェック内容                | メッセージ例                         | Postman エンドポイント             |
-| ------------------------ | --------------------------- | ------------------------------------ | ---------------------------------- |
-| 状態チェック（編集）     | `$task->status === 'done'`  | 完了済みのタスクは編集できません     | `PUT /api/tasks/1`                 |
-| 状態チェック（削除）     | `$task->status === 'done'`  | 完了済みのタスクは削除できません     | `DELETE /api/tasks/1`              |
-| 状態遷移（開始）         | `$task->status !== 'todo'`  | 未着手のタスクのみ開始できます       | `POST /api/tasks/3/start`          |
-| 状態遷移（完了）         | `$task->status !== 'doing'` | 作業中のタスクのみ完了できます       | `POST /api/tasks/4/complete`       |
-| 数量チェック（オーナー） | `$ownerCount <= 1`          | 最後のオーナーは削除できません       | `DELETE /api/projects/1/members/1` |
-| 関連チェック（タスク）   | `$hasIncompleteTasks`       | 未完了タスクがあるメンバーは削除不可 | `DELETE /api/projects/1/members/2` |
-| 重複チェック             | `既にメンバー`              | このユーザーは既にメンバーです       | -                                  |
+| パターン     | チェック内容               | メッセージ例                     |
+| ------------ | -------------------------- | -------------------------------- |
+| 状態チェック | `$task->status === 'done'` | 完了済みのタスクは編集できません |
+| 状態遷移     | `$task->status !== 'todo'` | 未着手のタスクのみ開始できます   |
+| 数量チェック | `$ownerCount <= 1`         | 最低 1 人のオーナーが必要です    |
+| 重複チェック | `既にメンバー`             | このユーザーは既にメンバーです   |
+| 期限チェック | `期限切れ`                 | 編集期限を過ぎています           |
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -624,12 +496,11 @@ public function destroy(Request $request, Project $project, $userId): JsonRespon
 ```php
 // TaskController.php
 
-public function show(Request $request, Task $task)
+public function show(Task $task)
 {
     // 権限チェック：プロジェクトメンバーかどうか
-    $project = $task->project;
-    $isMember = $project->users()
-        ->where('users.id', $request->user()->id)
+    $isMember = Membership::where('project_id', $task->project_id)
+        ->where('user_id', auth()->id())
         ->exists();
 
     if (!$isMember) {
@@ -638,13 +509,84 @@ public function show(Request $request, Task $task)
         ], 403);
     }
 
-    return new TaskResource($task);
+    return response()->json($task);
 }
 ```
 
-**👩‍💻 ユーザー：** 「users()リレーションで、ログインユーザーがプロジェクトメンバーかチェックするんですね」
+**👩‍💻 ユーザー：** 「Membership テーブルで、ログインユーザーがメンバーかチェックするんですね」
 
-**🐘 ガネーシャ：** 「せや。同じチェックを show、update、destroy 全部に書く必要があるんや」
+**🐘 ガネーシャ：** 「せや。でもこれ、毎回書くの面倒やろ？」
+
+**👩‍💻 ユーザー：** 「確かに...show、update、destroy 全部に書くのは...」
+
+---
+
+### 💡 リファクタリング：共通メソッドに切り出す
+
+**🐘 ガネーシャ：** 「同じチェックを何度も書くのはアホらしい。共通メソッドに切り出すで」
+
+```php
+// TaskController.php
+
+class TaskController extends Controller
+{
+    /**
+     * プロジェクトメンバーかチェックする共通メソッド
+     */
+    private function checkProjectMember(Task $task): bool
+    {
+        return Membership::where('project_id', $task->project_id)
+            ->where('user_id', auth()->id())
+            ->exists();
+    }
+
+    public function show(Task $task)
+    {
+        if (!$this->checkProjectMember($task)) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません'
+            ], 403);
+        }
+
+        return response()->json($task);
+    }
+
+    public function update(UpdateTaskRequest $request, Task $task)
+    {
+        if (!$this->checkProjectMember($task)) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません'
+            ], 403);
+        }
+
+        // 完了済みチェック（409）
+        if ($task->status === 'done') {
+            return response()->json([
+                'message' => '完了済みのタスクは編集できません'
+            ], 409);
+        }
+
+        $task->update($request->validated());
+        return response()->json($task);
+    }
+
+    public function destroy(Task $task)
+    {
+        if (!$this->checkProjectMember($task)) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません'
+            ], 403);
+        }
+
+        $task->delete();
+        return response()->json(['message' => '削除しました']);
+    }
+}
+```
+
+**👩‍💻 ユーザー：** 「checkProjectMember()を作って使い回すんですね！」
+
+**🐘 ガネーシャ：** 「せや。同じコードを何度も書くのは『DRY 原則』に反する。Don't Repeat Yourself や」
 
 ---
 
@@ -662,36 +604,32 @@ public function show(Request $request, Task $task)
 #### 実装
 
 ```php
-// ProjectMemberController.php
+// MembershipController.php
 
-/**
- * プロジェクトにメンバーを追加
- * POST /api/projects/{project}/members
- */
-public function store(Request $request, Project $project)
+public function store(StoreMembershipRequest $request, Project $project)
 {
     // 権限チェック：オーナーまたは管理者か
-    $currentUser = $project->users()
-        ->where('users.id', auth()->id())
+    $membership = Membership::where('project_id', $project->id)
+        ->where('user_id', auth()->id())
         ->first();
 
     // メンバーじゃない
-    if (!$currentUser) {
+    if (!$membership) {
         return response()->json([
             'message' => 'このプロジェクトにアクセスする権限がありません'
         ], 403);
     }
 
     // メンバーだけど、オーナー/管理者じゃない
-    if (!in_array($currentUser->pivot->role, ['project_owner', 'project_admin'])) {
+    if (!in_array($membership->role, ['project_owner', 'project_admin'])) {
         return response()->json([
             'message' => 'メンバーを追加する権限がありません（オーナーまたは管理者のみ）'
         ], 403);
     }
 
     // 重複チェック（409）
-    $exists = $project->users()
-        ->where('users.id', $request->user_id)
+    $exists = Membership::where('project_id', $project->id)
+        ->where('user_id', $request->user_id)
         ->exists();
 
     if ($exists) {
@@ -701,15 +639,13 @@ public function store(Request $request, Project $project)
     }
 
     // メンバー追加
-    $project->users()->attach($request->user_id, [
-        'role' => $request->role ?? 'project_member'
+    $newMembership = Membership::create([
+        'project_id' => $project->id,
+        'user_id' => $request->user_id,
+        'role' => $request->role ?? 'project_member',
     ]);
 
-    $newMember = $project->users()
-        ->where('users.id', $request->user_id)
-        ->first();
-
-    return response()->json($newMember, 201);
+    return response()->json($newMembership, 201);
 }
 ```
 
@@ -722,42 +658,42 @@ public function store(Request $request, Project $project)
 ### 💡 リファクタリング：権限チェックを共通化
 
 ```php
-// ProjectMemberController.php（または BaseController.php）
+// MembershipController.php（または BaseController.php）
 
 /**
  * プロジェクトへのアクセス権限をチェック
- * @return User|null
+ * @return Membership|null
  */
-private function getCurrentProjectUser(Project $project)
+private function getMembership(int $projectId): ?Membership
 {
-    return $project->users()
-        ->where('users.id', auth()->id())
+    return Membership::where('project_id', $projectId)
+        ->where('user_id', auth()->id())
         ->first();
 }
 
 /**
  * 管理権限（オーナー/管理者）があるかチェック
  */
-private function canManageMembers($user): bool
+private function canManageMembers(Membership $membership): bool
 {
-    return $user && in_array($user->pivot->role, ['project_owner', 'project_admin']);
+    return in_array($membership->role, ['project_owner', 'project_admin']);
 }
 ```
 
 使い方：
 
 ```php
-public function store(Request $request, Project $project)
+public function store(StoreMembershipRequest $request, Project $project)
 {
-    $currentUser = $this->getCurrentProjectUser($project);
+    $membership = $this->getMembership($project->id);
 
-    if (!$currentUser) {
+    if (!$membership) {
         return response()->json([
             'message' => 'このプロジェクトにアクセスする権限がありません'
         ], 403);
     }
 
-    if (!$this->canManageMembers($currentUser)) {
+    if (!$this->canManageMembers($membership)) {
         return response()->json([
             'message' => 'メンバーを追加する権限がありません'
         ], 403);
@@ -859,51 +795,91 @@ public function store(Request $request, Project $project)
 ```php
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Requests\Task\UpdateTaskRequest;
-use App\Http\Resources\TaskResource;
 use App\Models\Task;
+use App\Models\Membership;
+use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\UpdateTaskRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
-class TaskController extends ApiController
+class TaskController extends Controller
 {
+    /**
+     * プロジェクトメンバーかチェック
+     */
+    private function checkProjectMember(int $projectId): bool
+    {
+        return Membership::where('project_id', $projectId)
+            ->where('user_id', auth()->id())
+            ->exists();
+    }
 
     /**
-     * タスク詳細取得
-     * GET /api/tasks/{task}
+     * タスク一覧取得
+     * GET /api/projects/{project}/tasks
      */
-    public function show(Request $request, Task $task): TaskResource|JsonResponse
+    public function index(int $projectId): JsonResponse
     {
         // 403チェック：プロジェクトメンバーか
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
+        if (!$this->checkProjectMember($projectId)) {
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません'
             ], 403);
         }
 
-        return new TaskResource($task);
+        $tasks = Task::where('project_id', $projectId)->get();
+        return response()->json($tasks);
+    }
+
+    /**
+     * タスク作成
+     * POST /api/projects/{project}/tasks
+     */
+    public function store(StoreTaskRequest $request, int $projectId): JsonResponse
+    {
+        // 403チェック：プロジェクトメンバーか
+        if (!$this->checkProjectMember($projectId)) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません'
+            ], 403);
+        }
+
+        $task = Task::create([
+            'project_id' => $projectId,
+            'title' => $request->title,
+            'description' => $request->description,
+            'status' => 'todo',
+            'created_by' => auth()->id(),
+        ]);
+
+        return response()->json($task, 201);
+    }
+
+    /**
+     * タスク詳細取得
+     * GET /api/tasks/{task}
+     */
+    public function show(Task $task): JsonResponse
+    {
+        // 403チェック：プロジェクトメンバーか
+        if (!$this->checkProjectMember($task->project_id)) {
+            return response()->json([
+                'message' => 'このプロジェクトにアクセスする権限がありません'
+            ], 403);
+        }
+
+        return response()->json($task);
     }
 
     /**
      * タスク更新
      * PUT /api/tasks/{task}
      */
-    public function update(UpdateTaskRequest $request, Task $task): TaskResource|JsonResponse
+    public function update(UpdateTaskRequest $request, Task $task): JsonResponse
     {
         // 403チェック：プロジェクトメンバーか
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
+        if (!$this->checkProjectMember($task->project_id)) {
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません'
             ], 403);
@@ -917,51 +893,34 @@ class TaskController extends ApiController
         }
 
         $task->update($request->validated());
-        return new TaskResource($task);
+        return response()->json($task);
     }
 
     /**
      * タスク削除
      * DELETE /api/tasks/{task}
      */
-    public function destroy(Request $request, Task $task): JsonResponse
+    public function destroy(Task $task): JsonResponse
     {
         // 403チェック：プロジェクトメンバーか
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
+        if (!$this->checkProjectMember($task->project_id)) {
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません'
             ], 403);
         }
 
-        // 409チェック：完了済みタスクは削除不可
-        if ($task->status === 'done') {
-            return response()->json([
-                'message' => '完了済みのタスクは削除できません'
-            ], 409);
-        }
-
         $task->delete();
-        return response()->json(['message' => 'タスクを削除しました']);
+        return response()->json(['message' => '削除しました']);
     }
 
     /**
      * タスク開始
      * POST /api/tasks/{task}/start
      */
-    public function start(Request $request, Task $task): TaskResource|JsonResponse
+    public function start(Task $task): JsonResponse
     {
         // 403チェック：プロジェクトメンバーか
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
+        if (!$this->checkProjectMember($task->project_id)) {
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません'
             ], 403);
@@ -977,22 +936,17 @@ class TaskController extends ApiController
         $task->status = 'doing';
         $task->save();
 
-        return new TaskResource($task);
+        return response()->json($task);
     }
 
     /**
      * タスク完了
      * POST /api/tasks/{task}/complete
      */
-    public function complete(Request $request, Task $task): TaskResource|JsonResponse
+    public function complete(Task $task): JsonResponse
     {
         // 403チェック：プロジェクトメンバーか
-        $project = $task->project;
-        $isMember = $project->users()
-            ->where('users.id', $request->user()->id)
-            ->exists();
-
-        if (!$isMember) {
+        if (!$this->checkProjectMember($task->project_id)) {
             return response()->json([
                 'message' => 'このプロジェクトにアクセスする権限がありません'
             ], 403);
@@ -1008,7 +962,7 @@ class TaskController extends ApiController
         $task->status = 'done';
         $task->save();
 
-        return new TaskResource($task);
+        return response()->json($task);
     }
 }
 ```
@@ -1052,12 +1006,7 @@ public function update(UpdateTaskRequest $request, Task $task)
     // ② 422 → FormRequest で自動チェック（この時点で入力値確認済み）
 
     // ③ 403 → 権限チェック（自分で書く）
-    $project = $task->project;
-    $isMember = $project->users()
-        ->where('users.id', $request->user()->id)
-        ->exists();
-
-    if (!$isMember) {
+    if (!$this->checkProjectMember($task->project_id)) {
         return response()->json(['message' => '権限がありません'], 403);
     }
 
@@ -1068,7 +1017,7 @@ public function update(UpdateTaskRequest $request, Task $task)
 
     // ⑤ 正常処理
     $task->update($request->validated());
-    return new TaskResource($task);
+    return response()->json($task);
 }
 ```
 
@@ -1092,12 +1041,13 @@ public function update(UpdateTaskRequest $request, Task $task)
 <summary>📖 模範解答を見る</summary>
 
 ```php
-// ProjectMemberController.php
-
-public function destroy(Request $request, Project $project, $userId): JsonResponse
+public function destroy(Membership $membership): JsonResponse
 {
+    $projectId = $membership->project_id;
+    $userId = $membership->user_id;
+
     // 未完了タスクがあるかチェック
-    $hasIncompleteTasks = $project->tasks()
+    $hasIncompleteTasks = Task::where('project_id', $projectId)
         ->where('created_by', $userId)
         ->whereIn('status', ['todo', 'doing'])
         ->exists();
@@ -1108,17 +1058,10 @@ public function destroy(Request $request, Project $project, $userId): JsonRespon
         ], 409);
     }
 
-    $project->users()->detach($userId);
+    $membership->delete();
     return response()->json(['message' => 'メンバーを削除しました']);
 }
 ```
-
-**💡 ポイント:**
-
--   `$project->tasks()` でプロジェクトのタスクを取得
--   `where('created_by', $userId)` で削除対象ユーザーが作成したタスクに絞る
--   `whereIn('status', ['todo', 'doing'])` で未完了タスクに絞る
--   未完了タスクがあれば 409 Conflict を返す
 
 </details>
 
@@ -1171,15 +1114,10 @@ public function complete(Task $task)
 **修正版：**
 
 ```php
-public function complete(Request $request, Task $task)
+public function complete(Task $task)
 {
     // 403チェック
-    $project = $task->project;
-    $isMember = $project->users()
-        ->where('users.id', $request->user()->id)
-        ->exists();
-
-    if (!$isMember) {
+    if (!$this->checkProjectMember($task->project_id)) {
         return response()->json([
             'message' => 'このプロジェクトにアクセスする権限がありません'
         ], 403);
@@ -1194,7 +1132,7 @@ public function complete(Request $request, Task $task)
 
     $task->status = 'done';
     $task->save();
-    return new TaskResource($task);
+    return response()->json($task);
 }
 ```
 
@@ -1222,9 +1160,9 @@ public function complete(Request $request, Task $task)
 │  3️⃣ チェックの順序                                          │
 │     → 404（自動）→ 422（自動）→ 403 → 409 → 正常処理       │
 │                                                             │
-│  4️⃣ users()リレーションとpivotの活用                        │
-│     → $project->users()->where('users.id', auth()->id())   │
-│     → $user->pivot->role で権限チェック                     │
+│  4️⃣ 共通処理は切り出す                                      │
+│     → checkProjectMember() など                             │
+│     → DRY原則を守る                                         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
