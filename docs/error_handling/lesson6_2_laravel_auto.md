@@ -34,7 +34,7 @@ sail artisan migrate:refresh --seed
 
 ### フロントエンドの再起動
 
-Viteの開発サーバーを再起動してください：
+Vite の開発サーバーを再起動してください：
 
 ```bash
 # Ctrl+Cで現在のプロセスを停止してから
