@@ -58,9 +58,6 @@
 ```bash
 # Controller を作成
 sail artisan make:controller Api/TestController
-
-# Sail を使ってる場合
-sail artisan make:controller Api/TestController
 ```
 
 **👩‍💻ユーザー：** 「実行しました！`app/Http/Controllers/Api/TestController.php` が作られました！」
