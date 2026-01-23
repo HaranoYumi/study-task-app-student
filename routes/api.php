@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ProjectMemberController;
 use App\Http\Controllers\Api\ProjectController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\TestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,10 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 Route::get('/test', function () {
     throw new \Exception("テストエラー");
 });
+
+// テスト練習用（認証なし）
+Route::get('/test/ping', [TestController::class, 'ping']);
+Route::post('/test/echo', [TestController::class, 'echo']);
 
 // Projects
 Route::get('/test/projects', [ProjectController::class, 'index']);
