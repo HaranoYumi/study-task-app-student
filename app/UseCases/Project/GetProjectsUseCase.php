@@ -9,7 +9,7 @@ class GetProjectsUseCase
 {
     public function execute(User $user): Collection
     {
-        return $user->proects()
+        return $user->projects()
             ->with('users')
             ->orderBy('created_at', 'desc')
             ->get();
