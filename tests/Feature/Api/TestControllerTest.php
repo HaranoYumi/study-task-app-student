@@ -3,6 +3,7 @@
 
 namespace Tests\Feature\Api;
 
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TestControllerTest extends TestCase
@@ -53,6 +54,44 @@ class TestControllerTest extends TestCase
                 'name' => 'テスト太郎',
                 'age' => 25,
             ],
+        ]);
+    }
+
+    // ============================================
+    // 以下は日本語メソッド名の例
+    // ============================================
+
+    /**
+     * Pingエンドポイントが正常なレスポンスを返すことを確認
+     */
+    #[Test]
+    public function Pingエンドポイントが正常に動作する(): void
+    {
+        $response = $this->getJson('/api/test/ping');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'message' => 'pong',
+            'status' => 'ok',
+        ]);
+    }
+
+    /**
+     * Echoエンドポイントが送信したデータをそのまま返すことを確認
+     */
+    #[Test]
+    public function Echoエンドポイントが送信したデータを返す(): void
+    {
+        $sendData = [
+            'name' => 'テスト太郎',
+            'age' => 25,
+        ];
+
+        $response = $this->postJson('/api/test/echo', $sendData);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'received' => $sendData,
         ]);
     }
 }
