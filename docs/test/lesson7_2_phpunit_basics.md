@@ -259,36 +259,29 @@ class TestControllerTest extends TestCase
 
 **👩‍💻ユーザー：** 「えっ、日本語でいいんですか！？」
 
-**🐘ガネーシャ：** 「せや。2つの方法があるで」
+**🐘ガネーシャ：** 「せや。`test_` プレフィックス + 日本語メソッド名で書けるんや」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │          テストメソッド名を日本語にする方法                  │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  方法1️⃣：test_ プレフィックス + 日本語                       │
+│  test_ プレフィックス + 日本語                               │
 │                                                             │
 │    public function test_Pingエンドポイントが正常に動作する(): void
 │    {                                                        │
 │        // テストコード                                      │
 │    }                                                        │
 │                                                             │
-│  方法2️⃣：#[Test] 属性 + 日本語メソッド名                     │
-│                                                             │
-│    #[Test]                                                  │
-│    public function Pingエンドポイントが正常に動作する(): void  │
-│    {                                                        │
-│        // テストコード                                      │
-│    }                                                        │
-│                                                             │
-│  ⚠️ どちらの方法でも、メソッド名は public にすること！       │
+│  ⚠️ メソッド名は必ず public にすること！                    │
+│  ⚠️ test_ で始めることを忘れずに！                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **👩‍💻ユーザー：** 「日本語で書けると、一目で何のテストか分かりますね！」
 
-**🐘ガネーシャ：** 「せやろ？特に方法2️⃣の `#[Test]` 属性を使う方法は、`test_` プレフィックスが不要やから、より自然な日本語で書けるんや」
+**🐘ガネーシャ：** 「せやろ？`test_` の後に日本語で分かりやすく書けるから、読みやすいんや」
 
 ```php
 <?php
@@ -297,20 +290,18 @@ class TestControllerTest extends TestCase
 namespace Tests\Feature\Api;
 
 use Tests\TestCase;
-use PHPUnit\Framework\Attributes\Test;
 
 class TestControllerTest extends TestCase
 {
-    // 方法1：test_ プレフィックス + 日本語
+    // test_ プレフィックス + 日本語
     public function test_Pingエンドポイントが正常に動作する(): void
     {
         $response = $this->get('/api/test/ping');
         $response->assertStatus(200);
     }
 
-    // 方法2：#[Test] 属性 + 日本語メソッド名
-    #[Test]
-    public function Echoエンドポイントが送信したデータを返す(): void
+    // test_ プレフィックス + 日本語
+    public function test_Echoエンドポイントが送信したデータを返す(): void
     {
         $response = $this->post('/api/test/echo', ['name' => 'test']);
         $response->assertStatus(200);
@@ -322,7 +313,7 @@ class TestControllerTest extends TestCase
 
 ```bash
 # テスト実行結果の例
-FAILED  Tests\Feature\Api\TestControllerTest > Echoエンドポイントが送信したデータを返す
+FAILED  Tests\Feature\Api\TestControllerTest > echoエンドポイントが送信したデータを返す
 ```
 
 **👩‍💻ユーザー：** 「これなら、後から見返した時も何をテストしているか一目瞭然ですね！」
@@ -342,13 +333,14 @@ FAILED  Tests\Feature\Api\TestControllerTest > Echoエンドポイントが送�
 │  ⚠️ 注意点                                                  │
 │  ・プロジェクトのコーディング規約を確認                    │
 │  ・英語統一のプロジェクトでは使わない                      │
+│  ・必ず test_ プレフィックスを付ける                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **👩‍💻ユーザー：** 「分かりました！このプロジェクトでは日本語を使ってもいいんですか？」
 
-**🐘ガネーシャ：** 「このプロジェクトは学習用やから、**どっちでも好きな方を使ってええで**。今回は最初なので、まずは基本の `test_` プレフィックスで進めて、慣れてきたら日本語も試してみるとええで」
+**🐘ガネーシャ：** 「このプロジェクトは学習用やから、**日本語で分かりやすく書いてええで**。`test_` プレフィックスさえ忘れんかったら、後は自由に書いてな」
 
 **👩‍💻ユーザー：** 「了解です！」
 
@@ -378,8 +370,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    #[Test]
-    public function Pingエンドポイントが正常に動作する(): void
+    public function test_Pingエンドポイントが正常に動作する(): void
     {
         // API にリクエストを送る
         $response = $this->getJson('/api/test/ping');
@@ -841,8 +832,7 @@ sail artisan test --filter=TestControllerTest
 **🐘ガネーシャ：** 「さっき書いたテストを AAA パターンで見てみよか」
 
 ```php
-#[Test]
-public function Pingエンドポイントが正常に動作する(): void
+public function test_Pingエンドポイントが正常に動作する(): void
 {
     // ============================================
     // 1. Arrange（準備）
@@ -928,8 +918,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    #[Test]
-    public function Pingエンドポイントが正常に動作する(): void
+    public function test_Pingエンドポイントが正常に動作する(): void
     {
         // 1. Arrange（準備）
         // → 認証不要なので、特になし
@@ -948,8 +937,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/echo が送ったデータをそのまま返す
      */
-    #[Test]
-    public function Echoエンドポイントが送信したデータを返す(): void
+    public function test_Echoエンドポイントが送信したデータを返す(): void
     {
         // ============================================
         // 1. Arrange（準備）
