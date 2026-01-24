@@ -75,10 +75,9 @@ sail artisan make:controller Api/TestController
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 
-class TestController extends Controller
+class TestController extends ApiController
 {
     /**
      * テスト用：シンプルなレスポンスを返す
