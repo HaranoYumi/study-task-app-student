@@ -29,10 +29,10 @@ public function ping(): JsonResponse
     ]);
 }
 
-public function echo(): JsonResponse
+public function echo(Request $request): JsonResponse
 {
     return response()->json([
-        'received' => request()->all(),
+        'received' => $request->all(),
     ]);
 }
 ```
@@ -107,71 +107,9 @@ public function echo(): JsonResponse
 
 **👩‍💻ユーザー：** 「Factory...？」
 
-**🐘ガネーシャ：** 「せや！**Factory（ファクトリー）**を使えば、テストデータが超簡単に作れるんや」
+**🐘ガネーシャ：** 「せや！**Factory（ファクトリー）**を使えば、テストデータが超簡単に作れるんや。まずはやってみて、問題が起きたら対処法を教えたるわ」
 
----
-
-### 😱 もう1つの問題：テスト後のゴミデータ
-
-**👩‍💻ユーザー：** 「あ、でも待ってください。テストでデータを作ったら、データベースにゴミが残りませんか？」
-
-**🐘ガネーシャ：** 「おお、そこに気づいたか！賢いな」
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│            テスト後にゴミが残る問題                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  【テスト1回目】                                            │
-│  → テスト用ユーザー「テスト太郎」を作成                    │
-│  → テスト実行                                              │
-│  → 「テスト太郎」がDBに残る 😰                             │
-│                                                             │
-│  【テスト2回目】                                            │
-│  → また「テスト太郎」を作成しようとする                    │
-│  → 「email が重複してます」エラー！💥                      │
-│                                                             │
-│  【テスト100回目】                                          │
-│  → DBがテストデータだらけ...😱                             │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**👩‍💻ユーザー：** 「それは困ります...！」
-
-**🐘ガネーシャ：** 「せやろ？そこで登場するのが **RefreshDatabase** や！」
-
----
-
-### 🎯 今日学ぶこと
-
-**🐘ガネーシャ：** 「今日はこの2つの問題を解決する方法を学ぶで」
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  🎯 今日のゴール                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  【問題1】テストデータをどうやって作る？                    │
-│     ↓                                                       │
-│  【解決】Factory を使う！                                   │
-│     → User::factory()->create() で1行でユーザー作成        │
-│                                                             │
-│  【問題2】テスト後にゴミデータが残る                        │
-│     ↓                                                       │
-│  【解決】RefreshDatabase を使う！                           │
-│     → テストごとにDBをリセットしてくれる                   │
-│                                                             │
-│  ─────────────────────────────────────────────────          │
-│                                                             │
-│  これが分かれば、データベースを使うAPIのテストが書ける！    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**👩‍💻ユーザー：** 「なるほど！前回の TestController は DB を使わなかったけど、今日は DB を使うテストを学ぶんですね！」
-
-**🐘ガネーシャ：** 「その通りや！ステップアップやな。ほな始めるで！」
+**👩‍💻ユーザー：** 「分かりました！」
 
 ---
 
@@ -179,11 +117,9 @@ public function echo(): JsonResponse
 
 ### 🎭 DB を使うテストを書いてみる（失敗編）
 
-**🐘ガネーシャ：** 「百聞は一見にしかず。まず、Factory も RefreshDatabase も使わずにテストを書いてみよか」
+**🐘ガネーシャ：** 「百聞は一見にしかず。まず、テストを書いてみよか」
 
-**👩‍💻ユーザー：** 「え、わざと失敗するんですか？」
-
-**🐘ガネーシャ：** 「せや！失敗を体験した方が、解決策のありがたみが分かるやろ？」
+**👩‍💻ユーザー：** 「はい！」
 
 ---
 
@@ -220,13 +156,28 @@ public function echo(): JsonResponse
 
 ---
 
-### 📝 ステップ2：間違ったテストを書いてみる
+### 📝 ステップ2：テストファイルを作成
 
-**🐘ガネーシャ：** 「ほな、まず『ダメな例』を書いてみるで」
+**🐘ガネーシャ：** 「まずはテストファイルを作るで。ターミナルでこのコマンドを実行してな」
+
+```bash
+# テストファイルを作成
+sail artisan make:test Api/UserTest
+```
+
+**👩‍💻ユーザー：** 「実行しました！`tests/Feature/Api/UserTest.php` が作られました！」
+
+**🐘ガネーシャ：** 「ええな。ほな、このファイルにテストを書いていくで」
+
+---
+
+### 📝 ステップ3：ユーザーなしでテストを書いてみる
+
+**🐘ガネーシャ：** 「まず、ユーザーを作らずにテストを書いてみよか」
 
 ```php
 <?php
-// tests/Feature/Api/UserTest.php（ダメな例）
+// tests/Feature/Api/UserTest.php（まだダメな例）
 
 namespace Tests\Feature\Api;
 
@@ -234,7 +185,7 @@ use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    public function test_can_get_authenticated_user(): void
+    public function test_認証済みユーザーの情報を取得できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -264,7 +215,7 @@ sail artisan test --filter=UserTest
 
 ```
    FAIL  Tests\Feature\Api\UserTest
-  ✕ can get authenticated user                               0.08s
+  ✕ 認証済みユーザーの情報を取得できる                        0.08s
   ┐
   │ Expected status code 200 but received 401.
   │
@@ -284,11 +235,11 @@ sail artisan test --filter=UserTest
 
 **👩‍💻ユーザー：** 「じゃあ、テストの中でユーザーを作ればいいんじゃ...」
 
-**🐘ガネーシャ：** 「せやな、やってみよか」
+**🐘ガネーシャ：** 「せやな、やってみよか。テストファイルを以下のように書き換えてみ」
 
 ```php
 <?php
-// まだダメな例
+// tests/Feature/Api/UserTest.php（まだ問題がある例）
 
 namespace Tests\Feature\Api;
 
@@ -297,7 +248,7 @@ use Tests\TestCase;
 
 class UserTest extends TestCase
 {
-    public function test_can_get_authenticated_user(): void
+    public function test_認証済みユーザーの情報を取得できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -328,45 +279,109 @@ class UserTest extends TestCase
 }
 ```
 
-**👩‍💻ユーザー：** 「これで動きそう...！」
-
-**🐘ガネーシャ：** 「1回目は動くかもしれん。でも2回目を実行してみ」
+**👩‍💻ユーザー：** 「これで動きそう...！実行してみます」
 
 ```bash
-# 1回目
 sail artisan test --filter=UserTest
-# → PASS ✅
+```
 
+```
+   PASS  Tests\Feature\Api\UserTest
+  ✓ 認証済みユーザーの情報を取得できる                        0.15s
+
+  Tests:    1 passed (2 assertions)
+```
+
+**👩‍💻ユーザー：** 「通った！やった！」
+
+**🐘ガネーシャ：** 「おお、1回目は通ったな。ほな、**もう1回実行**してみ」
+
+**👩‍💻ユーザー：** 「え、同じテストをもう1回？」
+
+**🐘ガネーシャ：** 「せや。やってみ」
+
+```bash
 # 2回目
 sail artisan test --filter=UserTest
-# → FAIL ❌
 ```
 
 ```
    FAIL  Tests\Feature\Api\UserTest
-  ✕ can get authenticated user                               0.05s
+  ✕ 認証済みユーザーの情報を取得できる                        0.05s
   ┐
   │ SQLSTATE[23000]: Integrity constraint violation: 1062
   │ Duplicate entry 'test@example.com' for key 'users_email_unique'
   ┴
+
+  Tests:    1 failed
 ```
 
-**👩‍💻ユーザー：** 「あ！メールアドレスが重複してる...！」
-
-**🐘ガネーシャ：** 「せや！1回目のテストで作ったユーザーがDBに残ってるから、2回目で重複エラーになるんや」
+**👩‍💻ユーザー：** 「えっ！？エラーになった！」
 
 ---
 
-### 💡 ここで Factory と RefreshDatabase の登場！
+### 💥 問題発覚：テストデータがDBに残っている！
 
-**🐘ガネーシャ：** 「この2つの問題を解決するのが、今日学ぶ道具や」
+**🐘ガネーシャ：** 「ほら見てみ。このエラーメッセージ、何て書いてある？」
+
+```
+Duplicate entry 'test@example.com' for key 'users_email_unique'
+```
+
+**👩‍💻ユーザー：** 「えーっと...`test@example.com` が重複してる...？」
+
+**🐘ガネーシャ：** 「せや！これがどういうことか分かるか？」
+
+**👩‍💻ユーザー：** 「あ！1回目のテストで作った `test@example.com` がDBに残ってる...！」
+
+**🐘ガネーシャ：** 「正解！これが**テストデータがゴミとして残る問題**や」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│            💥 テスト後にゴミが残る問題                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【テスト1回目】                                            │
+│  → テスト用ユーザー「テスト太郎」を作成                    │
+│  → テスト実行 → PASS ✅                                    │
+│  → 「テスト太郎」がDBに残ったまま 😰                       │
+│                                                             │
+│  【テスト2回目】                                            │
+│  → また「テスト太郎」を作成しようとする                    │
+│  → 「email が重複してます」エラー！💥                      │
+│  → FAIL ❌                                                  │
+│                                                             │
+│  【テスト100回目】                                          │
+│  → DBがテストデータだらけ...😱                             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「これは困ります...！毎回テストするたびにエラーになっちゃう...」
+
+**🐘ガネーシャ：** 「せやろ？この問題を解決するのが **RefreshDatabase** や！」
+
+---
+
+### 💡 ここで RefreshDatabase と Factory の登場！
+
+**🐘ガネーシャ：** 「今体験した問題をまとめると、こうなるで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              解決策                                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  【問題】ユーザー作成のコードが長い                         │
+│  【問題1】テスト後にゴミデータが残る                        │
+│                                                             │
+│  ✅ RefreshDatabase を使う:                                 │
+│  use RefreshDatabase; ← これを書くだけ！                   │
+│  → テストごとにDBがリセットされる                          │
+│  → 何回実行しても重複エラーにならない！                    │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  【問題2】ユーザー作成のコードが長い                        │
 │                                                             │
 │  ❌ ダメな例（6行）:                                        │
 │  $user = new User();                                        │
@@ -377,14 +392,6 @@ sail artisan test --filter=UserTest
 │                                                             │
 │  ✅ Factory を使う（1行）:                                  │
 │  $user = User::factory()->create();                         │
-│                                                             │
-│  ─────────────────────────────────────────────────          │
-│                                                             │
-│  【問題】テスト後にゴミデータが残る                         │
-│                                                             │
-│  ✅ RefreshDatabase を使う:                                 │
-│  use RefreshDatabase; ← これを書くだけ！                   │
-│  → テストごとにDBがリセットされる                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -421,7 +428,7 @@ class UserTest extends TestCase
 {
     use RefreshDatabase;  // ← これを追加するだけ！
 
-    public function test_can_get_authenticated_user(): void
+    public function test_認証済みユーザーの情報を取得できる(): void
     {
         // ...
     }
@@ -558,9 +565,226 @@ class UserTest extends TestCase
 
 ---
 
+### 📁 Factory ファイルの場所
+
+**👩‍💻ユーザー：** 「でも、その『工場』ってどこにあるんですか？」
+
+**🐘ガネーシャ：** 「ええ質問や！Factory ファイルは `database/factories/` フォルダにあるんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Factory ファイルの場所                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  プロジェクト/                                               │
+│  ├── app/                                                   │
+│  │   └── Models/                                            │
+│  │       └── User.php          ← モデル                    │
+│  │                                                          │
+│  ├── database/                                              │
+│  │   ├── factories/            ← Factory はここ！          │
+│  │   │   └── UserFactory.php   ← User 用の工場             │
+│  │   │                                                      │
+│  │   ├── migrations/                                        │
+│  │   └── seeders/                                           │
+│  │                                                          │
+│  └── tests/                                                 │
+│      └── Feature/                                           │
+│          └── Api/                                           │
+│              └── UserTest.php  ← テストファイル            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「`database/factories/UserFactory.php` にあるんですね！」
+
+**🐘ガネーシャ：** 「せや！Laravel は最初から `UserFactory.php` を用意してくれとるんや」
+
+---
+
+### 📝 Factory ファイルの中身を見てみよう
+
+**🐘ガネーシャ：** 「実際の Factory ファイルの中身を見てみよか」
+
+```php
+<?php
+// database/factories/UserFactory.php
+
+namespace Database\Factories;
+
+use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+class UserFactory extends Factory
+{
+    /**
+     * モデルのデフォルト状態を定義
+     */
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->name(),              // ランダムな名前
+            'email' => fake()->unique()->safeEmail(), // ランダムなメール
+            'email_verified_at' => now(),          // 認証済み
+            'password' => Hash::make('password'),  // 固定パスワード
+            'remember_token' => Str::random(10),
+        ];
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「おお！`definition()` メソッドでデフォルト値を定義してるんですね」
+
+**🐘ガネーシャ：** 「せや！このファイルが『工場の設計図』みたいなもんや」
+
+---
+
+### 🔍 Factory ファイルの解説
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Factory ファイルの解説                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  fake()->name()                                             │
+│  └─ ランダムな名前を生成（例: "John Doe", "山田 太郎"）    │
+│                                                             │
+│  fake()->unique()->safeEmail()                              │
+│  └─ ユニークなランダムメールアドレスを生成                 │
+│     （例: "john.doe@example.com"）                          │
+│                                                             │
+│  now()                                                      │
+│  └─ 現在日時（email_verified_at に設定 = 認証済み）        │
+│                                                             │
+│  Hash::make('password')                                     │
+│  └─ 'password' を暗号化（全ユーザー共通のパスワード）      │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  💡 fake() は Laravel の Faker ライブラリ                   │
+│     → テスト用のダミーデータを自動生成してくれる           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「`fake()` がランダムなデータを作ってくれるんですね！」
+
+**🐘ガネーシャ：** 「せや！毎回違う名前やメールアドレスが生成されるから、重複の心配がないんや」
+
+---
+
+### 🏭 新しい Factory を作る方法
+
+**👩‍💻ユーザー：** 「User 以外の Factory も作れるんですか？」
+
+**🐘ガネーシャ：** 「もちろんや！コマンドで簡単に作れるで」
+
+```bash
+# Project モデル用の Factory を作成
+sail artisan make:factory ProjectFactory
+
+# Task モデル用の Factory を作成
+sail artisan make:factory TaskFactory
+```
+
+**👩‍💻ユーザー：** 「実行すると...」
+
+```
+   INFO  Factory [database/factories/ProjectFactory.php] created successfully.
+```
+
+**🐘ガネーシャ：** 「これで `database/factories/ProjectFactory.php` が作られるんや」
+
+---
+
+### 📝 作成された Factory ファイル
+
+**🐘ガネーシャ：** 「作成されたファイルは、まだ中身が空っぽや」
+
+```php
+<?php
+// database/factories/ProjectFactory.php（作成直後）
+
+namespace Database\Factories;
+
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class ProjectFactory extends Factory
+{
+    public function definition(): array
+    {
+        return [
+            // ← ここに定義を書く必要がある
+        ];
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「自分で `definition()` の中身を書くんですね」
+
+**🐘ガネーシャ：** 「せや！例えば Project なら、こんな感じや」
+
+```php
+<?php
+// database/factories/ProjectFactory.php（定義を追加）
+
+namespace Database\Factories;
+
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class ProjectFactory extends Factory
+{
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->sentence(3),        // ランダムな名前
+            'description' => fake()->paragraph(), // ランダムな説明
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+}
+```
+
+---
+
+### 📊 Factory 作成の流れ まとめ
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Factory 作成の流れ                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【User の場合】                                            │
+│  → Laravel が最初から UserFactory.php を用意してくれてる   │
+│  → そのまま使える！                                        │
+│                                                             │
+│  【Project, Task などの場合】                               │
+│  1. コマンドで Factory ファイルを作成                       │
+│     sail artisan make:factory ProjectFactory                │
+│                                                             │
+│  2. definition() にデフォルト値を定義                       │
+│     return [                                                │
+│         'name' => fake()->sentence(3),                      │
+│         ...                                                 │
+│     ];                                                      │
+│                                                             │
+│  3. テストで使う！                                          │
+│     $project = Project::factory()->create();                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「User はそのまま使えて、他のモデルは自分で作るんですね！」
+
+**🐘ガネーシャ：** 「その通りや！ほな、Factory の使い方を見ていこか」
+
+---
+
 ### 📝 Factory の使い方
 
-**🐘ガネーシャ：** 「実際のコードを見てみよか」
+**🐘ガネーシャ：** 「Factory の使い方は超簡単や」
 
 ```php
 // 基本的な使い方
@@ -592,7 +816,7 @@ $user = User::factory()->create([
 //     'id' => 1,
 //     'name' => '山田太郎',           ← 指定した値
 //     'email' => 'yamada@example.com', ← 指定した値
-//     'password' => '暗号化されたパスワード', ← デフォルト
+//     'password' => '暗号化されたパスワード', ← Factory のデフォルト
 //     ...
 // ]
 ```
@@ -659,7 +883,7 @@ class UserTest extends TestCase
     /**
      * 認証済みユーザーの情報を取得できる
      */
-    public function test_can_get_authenticated_user(): void
+    public function test_認証済みユーザーの情報を取得できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -805,7 +1029,7 @@ sail artisan test --filter=UserTest
 
 ```
    PASS  Tests\Feature\Api\UserTest
-  ✓ can get authenticated user                               0.15s
+  ✓ 認証済みユーザーの情報を取得できる                        0.15s
 
   Tests:    1 passed (2 assertions)
   Duration: 0.25s
@@ -821,7 +1045,7 @@ sail artisan test --filter=UserTest
 
 ```
    PASS  Tests\Feature\Api\UserTest
-  ✓ can get authenticated user                               0.12s
+  ✓ 認証済みユーザーの情報を取得できる                        0.12s
 
   Tests:    1 passed (2 assertions)
   Duration: 0.22s
@@ -914,6 +1138,45 @@ $membership = Membership::factory()->create([
 
 ---
 
+### 📊 よく使う fake() メソッド
+
+**🐘ガネーシャ：** 「Factory の definition() で使える fake() メソッドをいくつか紹介するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              よく使う fake() メソッド                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【名前・メール】                                           │
+│  fake()->name()           → "John Doe"                     │
+│  fake()->email()          → "john@example.com"             │
+│  fake()->unique()->email() → ユニークなメール              │
+│                                                             │
+│  【文章】                                                   │
+│  fake()->sentence()       → "This is a sentence."          │
+│  fake()->sentence(3)      → 3単語の文章                    │
+│  fake()->paragraph()      → 段落                           │
+│  fake()->text(200)        → 200文字のテキスト              │
+│                                                             │
+│  【数値・日付】                                             │
+│  fake()->numberBetween(1, 100) → 1〜100のランダム数        │
+│  fake()->dateTime()       → ランダムな日時                 │
+│  fake()->dateTimeBetween('-1 week', 'now') → 1週間以内     │
+│                                                             │
+│  【その他】                                                 │
+│  fake()->boolean()        → true or false                  │
+│  fake()->randomElement(['a', 'b', 'c']) → 配列からランダム │
+│  fake()->uuid()           → UUID                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「いろんなダミーデータが作れるんですね！」
+
+**🐘ガネーシャ：** 「せや！Factory を使いこなせば、テストデータの準備がめっちゃ楽になるで」
+
+---
+
 ## 📝 まとめ
 
 ### 🎯 今日学んだこと
@@ -937,7 +1200,12 @@ $membership = Membership::factory()->create([
 │      → 1行でユーザーが作れる                               │
 │      → 必要な値だけ指定、残りはおまかせ                    │
 │                                                             │
-│  4️⃣  actingAs() でログイン状態を作る                        │
+│  4️⃣  Factory ファイルの場所と作り方                         │
+│      → database/factories/ フォルダにある                  │
+│      → sail artisan make:factory で新規作成               │
+│      → definition() でデフォルト値を定義                   │
+│                                                             │
+│  5️⃣  actingAs() でログイン状態を作る                        │
 │      $this->actingAs($user)->getJson(...);                  │
 │      → Postman で4ステップ必要だった作業が1行             │
 │                                                             │
