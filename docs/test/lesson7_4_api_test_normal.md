@@ -211,6 +211,7 @@ use App\Models\Membership;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProjectApiTest extends TestCase
@@ -220,7 +221,8 @@ class ProjectApiTest extends TestCase
     /**
      * 参加しているプロジェクト一覧を取得できる
      */
-    public function test_参加しているプロジェクト一覧を取得できる(): void
+    #[Test]
+    public function 参加しているプロジェクト一覧を取得できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -452,7 +454,8 @@ sail artisan test --filter=ProjectApiTest
 /**
  * 参加していないプロジェクトは一覧に表示されない
  */
-public function test_参加していないプロジェクトは一覧に表示されない(): void
+#[Test]
+public function 参加していないプロジェクトは一覧に表示されない(): void
 {
     // ============================================
     // 1. Arrange（準備）
@@ -581,6 +584,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TaskApiTest extends TestCase
@@ -590,7 +594,8 @@ class TaskApiTest extends TestCase
     /**
      * タスクを作成できる
      */
-    public function test_タスクを作成できる(): void
+    #[Test]
+    public function タスクを作成できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -738,7 +743,8 @@ sail artisan test --filter=TaskApiTest
 /**
  * todo ステータスのタスクを開始できる
  */
-public function test_todoステータスのタスクを開始できる(): void
+#[Test]
+public function todoステータスのタスクを開始できる(): void
 {
     // ============================================
     // 1. Arrange（準備）

@@ -283,7 +283,8 @@
 
 ```php
 // ❌ 悪い例：1つのテストで複数のことを検証
-public function test_project_crud(): void
+#[Test]
+public function プロジェクトのCRUD操作(): void
 {
     $user = User::factory()->create();
     
@@ -308,7 +309,8 @@ public function test_project_crud(): void
 
 ```php
 // ✅ 良い例：1つのテストで1つのことを検証
-public function test_can_create_project(): void
+#[Test]
+public function プロジェクトを作成できる(): void
 {
     $user = User::factory()->create();
     
@@ -318,17 +320,20 @@ public function test_can_create_project(): void
     $response->assertStatus(201);
 }
 
-public function test_can_get_project_list(): void
+#[Test]
+public function プロジェクト一覧を取得できる(): void
 {
     // ...
 }
 
-public function test_can_update_project(): void
+#[Test]
+public function プロジェクトを更新できる(): void
 {
     // ...
 }
 
-public function test_can_delete_project(): void
+#[Test]
+public function プロジェクトを削除できる(): void
 {
     // ...
 }

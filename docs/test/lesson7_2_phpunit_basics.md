@@ -362,7 +362,7 @@ FAILED  Tests\Feature\Api\TestControllerTest > Echoエンドポイントが送�
 
 **👩‍💻ユーザー：** 「はい！」
 
-**🐘ガネーシャ：** 「ファイルを以下の内容に**置き換え**てな」
+**🐘ガネーシャ：** 「ファイルを以下の内容に**置き換え**てな。さっき説明した日本語メソッド名を使うで」
 
 ```php
 <?php
@@ -370,6 +370,7 @@ FAILED  Tests\Feature\Api\TestControllerTest > Echoエンドポイントが送�
 
 namespace Tests\Feature\Api;
 
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TestControllerTest extends TestCase
@@ -377,7 +378,8 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    public function test_ping_returns_pong(): void
+    #[Test]
+    public function Pingエンドポイントが正常に動作する(): void
     {
         // API にリクエストを送る
         $response = $this->getJson('/api/test/ping');
@@ -839,7 +841,8 @@ sail artisan test --filter=TestControllerTest
 **🐘ガネーシャ：** 「さっき書いたテストを AAA パターンで見てみよか」
 
 ```php
-public function test_ping_returns_pong(): void
+#[Test]
+public function Pingエンドポイントが正常に動作する(): void
 {
     // ============================================
     // 1. Arrange（準備）
@@ -909,7 +912,7 @@ public function test_ping_returns_pong(): void
 
 **👩‍💻ユーザー：** 「はい！」
 
-**🐘ガネーシャ：** 「`test_ping_returns_pong` の下に、新しいテストメソッドを追加するで」
+**🐘ガネーシャ：** 「`Pingエンドポイントが正常に動作する` の下に、新しいテストメソッドを追加するで」
 
 ```php
 <?php
@@ -917,6 +920,7 @@ public function test_ping_returns_pong(): void
 
 namespace Tests\Feature\Api;
 
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TestControllerTest extends TestCase
@@ -924,7 +928,8 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    public function test_ping_returns_pong(): void
+    #[Test]
+    public function Pingエンドポイントが正常に動作する(): void
     {
         // 1. Arrange（準備）
         // → 認証不要なので、特になし
@@ -943,7 +948,8 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/echo が送ったデータをそのまま返す
      */
-    public function test_echo_returns_received_data(): void
+    #[Test]
+    public function Echoエンドポイントが送信したデータを返す(): void
     {
         // ============================================
         // 1. Arrange（準備）
