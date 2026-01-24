@@ -1050,6 +1050,43 @@ $response = $this->postJson('/api/test/echo', $sendData);
 
 **👩‍💻ユーザー：** 「`getJson` と違って、第2引数にデータを渡すんですね！」
 
+**🐘ガネーシャ：** 「せや！ほんでな、ここで送った `$sendData` は、Controller 側ではどうなっとると思う？」
+
+**👩‍💻ユーザー：** 「えーと...Controller の中で受け取るんですよね？」
+
+**🐘ガネーシャ：** 「その通りや！実は、`$sendData` で送ったデータは、Controller の `request()->all()` で受け取れるんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          $sendData と request()->all() の関係                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【テストコード】                                           │
+│  $sendData = [                                              │
+│      'name' => 'テスト太郎',                                │
+│      'age' => 25,                                           │
+│  ];                                                         │
+│  $response = $this->postJson('/api/test/echo', $sendData);  │
+│                    ここで送る ──┘                           │
+│                                                             │
+│  【Controller（TestController.php）】                       │
+│  public function echo(): JsonResponse                       │
+│  {                                                          │
+│      return response()->json([                              │
+│          'received' => request()->all(),  ← ここで受け取る │
+│      ]);                                                    │
+│  }                                                          │
+│                                                             │
+│  → テストで送った $sendData が、                            │
+│     Controller では request()->all() で取得できる！         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！テストで送ったデータが、そのまま `request()` の中に入るんですね！」
+
+**🐘ガネーシャ：** 「せや！だから echo メソッドは、`request()->all()` で受け取ったデータをそのまま返すだけのシンプルな API なんや」
+
 ---
 
 ### 📊 GET と POST の違い
