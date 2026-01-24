@@ -312,114 +312,11 @@ class TestControllerTest extends TestCase
 **🐘ガネーシャ：** 「テストが失敗した時も、どのテストが落ちたか日本語で表示されるから、めっちゃ分かりやすいで」
 
 ```bash
-# テスト実行結果の例
-FAILED  Tests\Feature\Api\TestControllerTest > echoエンドポイントが送信したデータを返す
+# テスト実行結果の例（失敗時）
+FAILED  Tests\Feature\Api\TestControllerTest > pingエンドポイントが正常に動作する
 ```
 
 **👩‍💻ユーザー：** 「これなら、後から見返した時も何をテストしているか一目瞭然ですね！」
-
-**🐘ガネーシャ：** 「せやろ？ほな、実際にテストが失敗する様子を見てみるか？」
-
-**👩‍💻ユーザー：** 「えっ、わざと失敗させるんですか？」
-
-**🐘ガネーシャ：** 「せや！失敗を体験することで、**テストの価値**がよく分かるんや」
-
----
-
-#### 💡 ちょっと試してみよう：わざとテストを失敗させる
-
-**🐘ガネーシャ：** 「`TestController.php` の `ping` メソッドを、わざと間違った値に変えてみるで」
-
-**手順：**
-
-1. **`app/Http/Controllers/Api/TestController.php`** を開く
-2. `ping` メソッドを以下のように変更：
-
-```php
-public function ping(): JsonResponse
-{
-    return response()->json([
-        'message' => 'hello',  // ← わざと「pong」を「hello」に変更！
-        'status' => 'ok',
-    ]);
-}
-```
-
-3. テストを実行：
-
-```bash
-sail artisan test --filter=test_Pingエンドポイントが正常に動作する
-```
-
-**結果：**
-
-```bash
-FAIL  Tests\Feature\Api\TestControllerTest
-⨯ pingエンドポイントが正常に動作する
-
-─────────────────────────────────────────────────────────────
-FAILED  Tests\Feature\Api\TestControllerTest > pingエンドポイントが正常に動作する
-
-Expected response to have json fragment:
-{
-    "message": "pong"
-}
-
-but found:
-{
-    "message": "hello",
-    "status": "ok"
-}
-
-Failed asserting that two strings are equal.
-Expected: "pong"
-Actual: "hello"
-
-at tests/Feature/Api/TestControllerTest.php:18
-```
-
-**🐘ガネーシャ：** 「見てみぃ！めっちゃ丁寧にエラーを教えてくれるやろ？」
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              エラーメッセージの読み方                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Expected（期待値）: "pong"                                 │
-│  Actual（実際の値）: "hello"                                │
-│                                                             │
-│  → テストは "pong" を期待していたのに、                    │
-│     実際には "hello" が返ってきた！                        │
-│                                                             │
-│  at tests/Feature/Api/TestControllerTest.php:18            │
-│  → どのファイルの何行目で失敗したか                        │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**👩‍💻ユーザー：** 「すごく分かりやすいエラーメッセージですね！何が違うのか一目瞭然です！」
-
-**🐘ガネーシャ：** 「せやろ？これが**テストの力**や。コードを変更した時に、**すぐに問題に気づける**んや」
-
-**👩‍💻ユーザー：** 「もしテストがなかったら、この変更に気づかずにデプロイしちゃうかもしれませんね...」
-
-**🐘ガネーシャ：** 「その通りや！せやからテストは大事なんや。ほな、元に戻しとこか」
-
-**元に戻す：**
-
-```php
-public function ping(): JsonResponse
-{
-    return response()->json([
-        'message' => 'pong',  // ← 元に戻す
-        'status' => 'ok',
-    ]);
-}
-```
-
-もう一度テストを実行すると、また緑色の ✓ が出るで！
-
----
 
 **🐘ガネーシャ：** 「ただし、**プロジェクトのコーディング規約**によっては英語で統一している場合もあるから、チームのルールに従ってな」
 
@@ -833,7 +730,7 @@ $response->assertJson([
 │  Postman: JSON を目で見て「message が pong で...」と確認 👀 │
 │                                                             │
 │  テスト:  assertJson() で自動確認 🤖                        │
-│           → 違ったら「pong のはずが ping やったで！」と     │
+│           → 違ったら「pong のはずが hello やったで！」と    │
 │             教えてくれる                                    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -841,17 +738,7 @@ $response->assertJson([
 
 **👩‍💻ユーザー：** 「なるほど...！Controller が返す値と、テストで期待する値を比較してるんですね」
 
-**🐘ガネーシャ：** 「せや！もし Controller のコードを誰かが間違えて変更したら...」
-
-```php
-// もし誰かがこう書き換えたら...
-return response()->json([
-    'message' => 'hello',  // ← pong じゃなくなった！
-    'status' => 'ok',
-]);
-```
-
-**🐘ガネーシャ：** 「テストを実行した瞬間に『pong のはずが hello やったで！』ってエラーになるんや」
+**🐘ガネーシャ：** 「せや！もし Controller のコードを誰かが間違えて変更したら、テストが失敗して気づけるんや」
 
 **👩‍💻ユーザー：** 「だからバグを早く見つけられるんですね...！」
 
@@ -1266,7 +1153,7 @@ $response->assertJson([
 
 **👩‍💻ユーザー：** 「Laravel には最初から入ってるんですね！」
 
-**🐘ガネーシャ：** 「せや。だから `php artisan test` コマンドですぐテストが実行できるんや」
+**🐘ガネーシャ：** 「せや。だから `sail artisan test` コマンドですぐテストが実行できるんや」
 
 ---
 
@@ -1394,45 +1281,55 @@ $response->assertJson([
 
 ### 🎭 わざと失敗させてみよう
 
-**🐘ガネーシャ：** 「テストが失敗した時どうなるか見てみよか」
+**🐘ガネーシャ：** 「ここまでテストが成功する様子を見てきたけど、**失敗した時**どうなるか見てみよか」
 
 **👩‍💻ユーザー：** 「え、わざと失敗させるんですか？」
 
-**🐘ガネーシャ：** 「せや。失敗した時の見方を知っておくのは大事やで」
+**🐘ガネーシャ：** 「せや！失敗を体験することで、**テストの価値**がよく分かるんや。エラーメッセージの読み方も覚えられるで」
 
 ---
 
-### 📝 期待値を間違えてみる
+### 💡 やってみよう：Controller を壊してテストを失敗させる
 
-**🐘ガネーシャ：** 「`test_Pingエンドポイントが正常に動作する` の `assertJson` を間違えてみ」
+**🐘ガネーシャ：** 「`TestController.php` の `ping` メソッドを、わざと間違った値に変えてみるで」
+
+**手順：**
+
+1. **`app/Http/Controllers/Api/TestController.php`** を開く
+2. `ping` メソッドを以下のように変更：
 
 ```php
-// わざと間違える
-$response->assertJson([
-    'message' => 'ping',  // ← pong じゃなくて ping にしてみる
-    'status' => 'ok',
-]);
+public function ping(): JsonResponse
+{
+    return response()->json([
+        'message' => 'hello',  // ← わざと「pong」を「hello」に変更！
+        'status' => 'ok',
+    ]);
+}
 ```
 
-**👩‍💻ユーザー：** 「実行してみます...」
+3. テストを実行：
 
 ```bash
 sail artisan test --filter=TestControllerTest
 ```
 
-```
+**結果：**
+
+```bash
    FAIL  Tests\Feature\Api\TestControllerTest
   ✕ pingエンドポイントが正常に動作する                        0.08s
   ┐
   │ Failed asserting that an array contains subset Array &0 (
-  │     'message' => 'ping'
+  │     'message' => 'pong'
   │     'status' => 'ok'
   │ ).
   │ 
-  │ Actual: {"message":"pong","status":"ok"}
+  │ Actual: {"message":"hello","status":"ok"}
   │ 
   │ at tests/Feature/Api/TestControllerTest.php:20
   ┴
+  ✓ echoエンドポイントが送信したデータを返す                  0.03s
 
   Tests:    1 failed, 1 passed
 ```
@@ -1443,11 +1340,11 @@ sail artisan test --filter=TestControllerTest
 
 ### 📊 エラーメッセージの読み方
 
-**🐘ガネーシャ：** 「エラーメッセージの読み方を教えるで」
+**🐘ガネーシャ：** 「このエラーメッセージ、めっちゃ丁寧に教えてくれとるやろ？読み方を解説するで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 エラーメッセージの読み方                     │
+│              エラーメッセージの読み方                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ✕ pingエンドポイントが正常に動作する                       │
@@ -1456,21 +1353,71 @@ sail artisan test --filter=TestControllerTest
 │  Failed asserting that an array contains subset             │
 │  └─ 「配列に含まれてるはずの内容がなかったで」             │
 │                                                             │
-│  'message' => 'ping'                                        │
-│  └─ これを期待してた（テストコードに書いた値）             │
+│  'message' => 'pong'                                        │
+│  └─ テストが期待してた値（テストコードに書いた）           │
 │                                                             │
-│  Actual: {"message":"pong","status":"ok"}                   │
-│  └─ 実際に返ってきた値                                     │
+│  Actual: {"message":"hello","status":"ok"}                  │
+│  └─ 実際に Controller から返ってきた値                     │
 │                                                             │
 │  at tests/Feature/Api/TestControllerTest.php:20             │
 │  └─ 失敗した場所（20行目）                                 │
 │                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  まとめ：                                                   │
+│  Expected（期待値）: "pong"                                 │
+│  Actual（実際の値）: "hello"                                │
+│                                                             │
+│  → テストは "pong" を期待していたのに、                    │
+│     実際には "hello" が返ってきた！                        │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「なるほど！『ping を期待してたけど、実際は pong だった』って教えてくれてるんですね」
+**👩‍💻ユーザー：** 「すごく分かりやすいエラーメッセージですね！何が違うのか一目瞭然です！」
 
-**🐘ガネーシャ：** 「せや！このメッセージを見れば、何が間違ってるか分かるんや。元に戻しといてな」
+**🐘ガネーシャ：** 「せやろ？これが**テストの力**や。コードを変更した時に、**すぐに問題に気づける**んや」
+
+**👩‍💻ユーザー：** 「もしテストがなかったら、この変更に気づかずにデプロイしちゃうかもしれませんね...」
+
+**🐘ガネーシャ：** 「その通りや！せやからテストは大事なんや。ほな、元に戻しとこか」
+
+---
+
+### 🔧 元に戻す
+
+**🐘ガネーシャ：** 「`TestController.php` を元に戻してな」
+
+```php
+public function ping(): JsonResponse
+{
+    return response()->json([
+        'message' => 'pong',  // ← 元に戻す
+        'status' => 'ok',
+    ]);
+}
+```
+
+**👩‍💻ユーザー：** 「戻しました！」
+
+**🐘ガネーシャ：** 「もう一度テストを実行してみ」
+
+```bash
+sail artisan test --filter=TestControllerTest
+```
+
+```
+   PASS  Tests\Feature\Api\TestControllerTest
+  ✓ pingエンドポイントが正常に動作する                        0.05s
+  ✓ echoエンドポイントが送信したデータを返す                  0.03s
+
+  Tests:    2 passed (4 assertions)
+  Duration: 0.15s
+```
+
+**👩‍💻ユーザー：** 「緑に戻った！🎉」
+
+**🐘ガネーシャ：** 「これでテストの失敗と成功、両方体験できたな！」
 
 ---
 
@@ -1526,14 +1473,14 @@ sail artisan test --verbose
 │      → TestController（ping, echo）                        │
 │                                                             │
 │  2️⃣  テストファイルを作成した                               │
-│      → php artisan make:test Api/TestControllerTest        │
+│      → sail artisan make:test Api/TestControllerTest        │
 │                                                             │
 │  3️⃣  テストを書いた                                         │
 │      → getJson() でリクエスト                              │
 │      → assertStatus(), assertJson() で検証                 │
 │                                                             │
 │  4️⃣  テストを実行して成功した！🎉                           │
-│      → php artisan test --filter=TestControllerTest        │
+│      → sail artisan test --filter=TestControllerTest        │
 │                                                             │
 │  5️⃣  AAA パターンを学んだ                                   │
 │      → Arrange（準備）→ Act（実行）→ Assert（検証）        │
@@ -1545,6 +1492,10 @@ sail artisan test --verbose
 │  7️⃣  Feature Test と Unit Test の違いを知った               │
 │      → Feature Test: API 全体のテスト（今回やった）        │
 │      → Unit Test: 部品単体のテスト                         │
+│                                                             │
+│  8️⃣  テストが失敗した時の見方を学んだ                       │
+│      → Expected（期待値）と Actual（実際の値）を比較       │
+│      → エラーメッセージで何が違うか一目瞭然                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```

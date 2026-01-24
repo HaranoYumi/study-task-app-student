@@ -13,7 +13,7 @@ class TestController extends ApiController
     public function ping(): JsonResponse
     {
         return response()->json([
-            'message' => 'pong',
+            'message' => 'pong',  // ← わざと「pong」を「hello」に変更！
             'status' => 'ok',
         ]);
     }
