@@ -156,6 +156,50 @@ public function echo(Request $request): JsonResponse
 
 ---
 
+### 📝 ステップ1-2：API のコードを確認しよう
+
+**👩‍💻ユーザー：** 「ところで、この `/api/user` って、どこに書いてあるんですか？」
+
+**🐘ガネーシャ：** 「ええ質問や！`routes/api.php` に定義されとるで」
+
+```php
+// routes/api.php
+
+// 認証済みユーザー情報を取得
+Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
+    return $request->user();
+});
+```
+
+**👩‍💻ユーザー：** 「`$request->user()` って何ですか？」
+
+**🐘ガネーシャ：** 「これはな、**ログイン中のユーザー情報を取得するメソッド**や」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              $request->user() の仕組み                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Route::middleware(['auth:sanctum'])                        │
+│  └─ この認証ミドルウェアが、トークンから                   │
+│     ログイン中のユーザーを特定してくれる                   │
+│                                                             │
+│  $request->user()                                           │
+│  └─ 特定されたユーザー情報を返す                           │
+│                                                             │
+│  【例】                                                     │
+│  ・ID: 1 の太郎さんでログイン → user() は太郎さんを返す    │
+│  ・ID: 2 の花子さんでログイン → user() は花子さんを返す    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！トークンから『誰がログインしてるか』を自動で判断してくれるんですね」
+
+**🐘ガネーシャ：** 「せや！だから、テストでは**ログイン状態のユーザーをDBに作っておく必要がある**んや」
+
+---
+
 ### 📝 ステップ2：テストファイルを作成
 
 **🐘ガネーシャ：** 「まずはテストファイルを作るで。ターミナルでこのコマンドを実行してな」
@@ -626,16 +670,18 @@ use Illuminate\Support\Str;
 
 class UserFactory extends Factory
 {
+    protected static ?string $password;  // パスワードを保持
+
     /**
      * モデルのデフォルト状態を定義
      */
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),              // ランダムな名前
-            'email' => fake()->unique()->safeEmail(), // ランダムなメール
-            'email_verified_at' => now(),          // 認証済み
-            'password' => Hash::make('password'),  // 固定パスワード
+            'name' => $this->faker?->name() ?? 'User',
+            'email' => $this->faker?->unique()->safeEmail() ?? Str::random(10) . '@example.com',
+            'email_verified_at' => now(),
+            'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
     }
@@ -655,28 +701,32 @@ class UserFactory extends Factory
 │              Factory ファイルの解説                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  fake()->name()                                             │
+│  $this->faker?->name() ?? 'User'                            │
 │  └─ ランダムな名前を生成（例: "John Doe", "山田 太郎"）    │
+│     faker が使えない場合は 'User' をデフォルト値として使用 │
 │                                                             │
-│  fake()->unique()->safeEmail()                              │
+│  $this->faker?->unique()->safeEmail() ?? Str::random(10)... │
 │  └─ ユニークなランダムメールアドレスを生成                 │
 │     （例: "john.doe@example.com"）                          │
+│     faker が使えない場合はランダム文字列のメールを生成     │
 │                                                             │
 │  now()                                                      │
 │  └─ 現在日時（email_verified_at に設定 = 認証済み）        │
 │                                                             │
-│  Hash::make('password')                                     │
+│  static::$password ??= Hash::make('password')               │
 │  └─ 'password' を暗号化（全ユーザー共通のパスワード）      │
+│     static プロパティで1度だけ生成し再利用（効率化）       │
 │                                                             │
 │  ─────────────────────────────────────────────────          │
 │                                                             │
-│  💡 fake() は Laravel の Faker ライブラリ                   │
+│  💡 $this->faker は Laravel の Faker ライブラリ             │
 │     → テスト用のダミーデータを自動生成してくれる           │
+│     → ?-> でnullセーフにアクセス（faker が null でもOK）   │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「`fake()` がランダムなデータを作ってくれるんですね！」
+**👩‍💻ユーザー：** 「`$this->faker` がランダムなデータを作ってくれるんですね！」
 
 **🐘ガネーシャ：** 「せや！毎回違う名前やメールアドレスが生成されるから、重複の心配がないんや」
 
@@ -746,8 +796,8 @@ class ProjectFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->sentence(3),        // ランダムな名前
-            'description' => fake()->paragraph(), // ランダムな説明
+            'name' => $this->faker->sentence(3),        // ランダムな名前
+            'description' => $this->faker->paragraph(), // ランダムな説明
             'created_at' => now(),
             'updated_at' => now(),
         ];
@@ -774,7 +824,7 @@ class ProjectFactory extends Factory
 │                                                             │
 │  2. definition() にデフォルト値を定義                       │
 │     return [                                                │
-│         'name' => fake()->sentence(3),                      │
+│         'name' => $this->faker->sentence(3),                │
 │         ...                                                 │
 │     ];                                                      │
 │                                                             │
@@ -1146,35 +1196,40 @@ $membership = Membership::factory()->create([
 
 ---
 
-### 📊 よく使う fake() メソッド
+### 📊 よく使う faker メソッド
 
-**🐘ガネーシャ：** 「Factory の definition() で使える fake() メソッドをいくつか紹介するで」
+**🐘ガネーシャ：** 「Factory の definition() で使える `$this->faker` メソッドをいくつか紹介するで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              よく使う fake() メソッド                        │
+│              よく使う $this->faker メソッド                  │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  【名前・メール】                                           │
-│  fake()->name()           → "John Doe"                     │
-│  fake()->email()          → "john@example.com"             │
-│  fake()->unique()->email() → ユニークなメール              │
+│  $this->faker->name()           → "John Doe"               │
+│  $this->faker->email()          → "john@example.com"       │
+│  $this->faker->unique()->email() → ユニークなメール        │
 │                                                             │
 │  【文章】                                                   │
-│  fake()->sentence()       → "This is a sentence."          │
-│  fake()->sentence(3)      → 3単語の文章                    │
-│  fake()->paragraph()      → 段落                           │
-│  fake()->text(200)        → 200文字のテキスト              │
+│  $this->faker->sentence()       → "This is a sentence."    │
+│  $this->faker->sentence(3)      → 3単語の文章              │
+│  $this->faker->paragraph()      → 段落                     │
+│  $this->faker->text(200)        → 200文字のテキスト        │
 │                                                             │
 │  【数値・日付】                                             │
-│  fake()->numberBetween(1, 100) → 1〜100のランダム数        │
-│  fake()->dateTime()       → ランダムな日時                 │
-│  fake()->dateTimeBetween('-1 week', 'now') → 1週間以内     │
+│  $this->faker->numberBetween(1, 100) → 1〜100のランダム数  │
+│  $this->faker->dateTime()       → ランダムな日時           │
+│  $this->faker->dateTimeBetween('-1 week', 'now')           │
+│                                 → 1週間以内                │
 │                                                             │
 │  【その他】                                                 │
-│  fake()->boolean()        → true or false                  │
-│  fake()->randomElement(['a', 'b', 'c']) → 配列からランダム │
-│  fake()->uuid()           → UUID                           │
+│  $this->faker->boolean()        → true or false            │
+│  $this->faker->randomElement(['a', 'b', 'c'])              │
+│                                 → 配列からランダム         │
+│  $this->faker->uuid()           → UUID                     │
+│                                                             │
+│  💡 ?-> でnullセーフにアクセスすることを推奨               │
+│     $this->faker?->name() ?? 'Default Name'                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```

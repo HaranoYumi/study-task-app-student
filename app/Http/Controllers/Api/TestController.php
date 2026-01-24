@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TestController extends ApiController
 {
@@ -21,10 +22,10 @@ class TestController extends ApiController
     /**
      * テスト用：受け取ったデータをそのまま返す
      */
-    public function echo(): JsonResponse
+    public function echo(Request $request): JsonResponse
     {
         return response()->json([
-            'received' => request()->all(),
+            'received' => $request->all(),
         ]);
     }
 }

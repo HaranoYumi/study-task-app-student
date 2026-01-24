@@ -221,8 +221,7 @@ class ProjectApiTest extends TestCase
     /**
      * 参加しているプロジェクト一覧を取得できる
      */
-    #[Test]
-    public function 参加しているプロジェクト一覧を取得できる(): void
+    public function test_参加しているプロジェクト一覧を取得できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -454,8 +453,7 @@ sail artisan test --filter=ProjectApiTest
 /**
  * 参加していないプロジェクトは一覧に表示されない
  */
-#[Test]
-public function 参加していないプロジェクトは一覧に表示されない(): void
+public function test_参加していないプロジェクトは一覧に表示されない(): void
 {
     // ============================================
     // 1. Arrange（準備）
@@ -594,8 +592,7 @@ class TaskApiTest extends TestCase
     /**
      * タスクを作成できる
      */
-    #[Test]
-    public function タスクを作成できる(): void
+    public function test_タスクを作成できる(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -743,8 +740,7 @@ sail artisan test --filter=TaskApiTest
 /**
  * todo ステータスのタスクを開始できる
  */
-#[Test]
-public function todoステータスのタスクを開始できる(): void
+public function test_todoステータスのタスクを開始できる(): void
 {
     // ============================================
     // 1. Arrange（準備）

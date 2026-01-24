@@ -11,7 +11,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    public function test_ping_returns_pong(): void
+    public function test_Pingエンドポイントが正常に動作する(): void
     {
         // 1. Arrange（準備）
         // → 認証不要なので、特になし
@@ -30,7 +30,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/echo が送ったデータをそのまま返す
      */
-    public function test_echo_returns_received_data(): void
+    public function test_Echoエンドポイントが送信したデータを返す(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -54,44 +54,6 @@ class TestControllerTest extends TestCase
                 'name' => 'テスト太郎',
                 'age' => 25,
             ],
-        ]);
-    }
-
-    // ============================================
-    // 以下は日本語メソッド名の例
-    // ============================================
-
-    /**
-     * Pingエンドポイントが正常なレスポンスを返すことを確認
-     */
-    #[Test]
-    public function Pingエンドポイントが正常に動作する(): void
-    {
-        $response = $this->getJson('/api/test/ping');
-
-        $response->assertStatus(200);
-        $response->assertJson([
-            'message' => 'pong',
-            'status' => 'ok',
-        ]);
-    }
-
-    /**
-     * Echoエンドポイントが送信したデータをそのまま返すことを確認
-     */
-    #[Test]
-    public function Echoエンドポイントが送信したデータを返す(): void
-    {
-        $sendData = [
-            'name' => 'テスト太郎',
-            'age' => 25,
-        ];
-
-        $response = $this->postJson('/api/test/echo', $sendData);
-
-        $response->assertStatus(200);
-        $response->assertJson([
-            'received' => $sendData,
         ]);
     }
 }
