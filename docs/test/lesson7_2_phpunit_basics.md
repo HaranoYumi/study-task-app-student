@@ -76,6 +76,7 @@ sail artisan make:controller Api/TestController
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TestController extends ApiController
 {
@@ -93,10 +94,10 @@ class TestController extends ApiController
     /**
      * テスト用：受け取ったデータをそのまま返す
      */
-    public function echo(): JsonResponse
+    public function echo(Request $request): JsonResponse
     {
         return response()->json([
-            'received' => request()->all(),
+            'received' => $request->all(),
         ]);
     }
 }
@@ -1038,21 +1039,21 @@ $sendData = [
 
 **👩‍💻ユーザー：** 「Postman だと4ステップかかるのに、コードだと3行で終わる...！」
 
-**🐘ガネーシャ：** 「そうや。そして、ここで準備した `$sendData` は、Controller 側で `request()->all()` として受け取れるんや」
+**🐘ガネーシャ：** 「そうや。そして、ここで準備した `$sendData` は、Controller 側で引数の `Request $request` として受け取れるんや」
 
-**👩‍💻ユーザー：** 「あ！Controller のコードに `request()->all()` って書いてありましたね！」
+**👩‍💻ユーザー：** 「あ！Controller のコードに `Request $request` って書いてありましたね！」
 
 ```php
 // Controller 側（TestController.php の echo メソッド）
-public function echo(): JsonResponse
+public function echo(Request $request): JsonResponse
 {
     return response()->json([
-        'received' => request()->all(),  // ← ここで受け取る！
+        'received' => $request->all(),  // ← ここで受け取る！
     ]);
 }
 ```
 
-**🐘ガネーシャ：** 「せや。テストで送った `$sendData` が、そのまま `request()->all()` の中身になるんや」
+**🐘ガネーシャ：** 「せや。テストで送った `$sendData` が、Controller の引数 `$request` として渡されて、`$request->all()` で取得できるんや」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1073,14 +1074,17 @@ public function echo(): JsonResponse
 │                                                             │
 │  【Controller 側】                                          │
 │                                                             │
-│  public function echo(): JsonResponse                       │
-│  {                                                          │
+│  public function echo(Request $request): JsonResponse       │
+│  {                        ↑                                 │
+│                           │                                 │
+│                           ここに $sendData が届く！         │
+│                                                             │
 │      return response()->json([                              │
-│          'received' => request()->all(),  // ← ここに届く！│
+│          'received' => $request->all(),  // ← 取得！       │
 │      ]);                                                    │
 │  }                                                          │
 │                                                             │
-│  request()->all() = [                                       │
+│  $request->all() = [                                        │
 │      'name' => 'テスト太郎',                                │
 │      'age' => 25,                                           │
 │  ]                                                          │
@@ -1104,7 +1108,7 @@ $response = $this->postJson('/api/test/echo', $sendData);
 
 **👩‍💻ユーザー：** 「`getJson` と違って、第2引数にデータを渡すんですね！」
 
-**🐘ガネーシャ：** 「せや。この `$sendData` が Controller の `request()->all()` として届くわけや」
+**🐘ガネーシャ：** 「せや。この `$sendData` が Controller の引数 `Request $request` として渡されて、`$request->all()` で取得できるわけや」
 
 ---
 
@@ -1199,12 +1203,15 @@ $response->assertJson([
 │                                  ▼                          │
 │                                                             │
 │     【Controller が受け取る】                               │
-│     public function echo(): JsonResponse                    │
-│     {                                                       │
+│     public function echo(Request $request): JsonResponse    │
+│     {                             ↑                         │
+│                                   │                         │
+│                                   ここに $sendData が届く！ │
+│                                                             │
 │         return response()->json([                           │
-│             'received' => request()->all(),                 │
+│             'received' => $request->all(),                  │
 │             //            ↑                                 │
-│             //            ここに $sendData が届く！         │
+│             //            ここで取得！                      │
 │         ]);                                                 │
 │     }                                                       │
 │                                  │                          │
@@ -1234,7 +1241,7 @@ $response->assertJson([
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「なるほど！テストで送った `$sendData` が Controller の `request()->all()` になって、それが `received` に入って返ってくるんですね！」
+**👩‍💻ユーザー：** 「なるほど！テストで送った `$sendData` が Controller の引数 `$request` になって、`$request->all()` で取得したものが `received` に入って返ってくるんですね！」
 
 **🐘ガネーシャ：** 「その通りや！この**データの流れ**を理解しておけば、どんな API のテストも書けるようになるで」
 
