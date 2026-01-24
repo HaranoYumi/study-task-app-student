@@ -25,6 +25,11 @@
 │  ✅ Factory                                                 │
 │     → User::factory()->create() で1行でユーザー作成        │
 │     → 必要な値だけ指定、残りはおまかせ                     │
+│     → database/factories/ フォルダにファイルがある         │
+│                                                             │
+│  ✅ Factory の作り方                                        │
+│     → UserFactory は Laravel が最初から用意してくれてる    │
+│     → 新しい Factory は make:factory で作成                │
 │                                                             │
 │  ✅ actingAs()                                              │
 │     → ログイン状態を1行で作れる                            │
@@ -108,7 +113,265 @@
 
 ---
 
-## 📖 第1章：プロジェクト一覧 API をテストしよう
+## 📖 第1章：Factory を準備しよう
+
+### 🤔 新しい Factory が必要！
+
+**👩‍💻ユーザー：** 「あれ、でも前回、UserFactory は Laravel が最初から用意してくれてるって言ってましたよね？Project や Membership の Factory はあるんですか？」
+
+**🐘ガネーシャ：** 「**ええ質問や！** 実はな、Laravel が最初から用意してくれてるのは UserFactory だけなんや。他の Factory は自分で作る必要があるで」
+
+**👩‍💻ユーザー：** 「あ、前回学んだ `make:factory` コマンドを使うんですね！」
+
+**🐘ガネーシャ：** 「その通りや！さすがやな」
+
+---
+
+### 📝 必要な Factory を確認
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              今日必要な Factory                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【User】                                                   │
+│  → UserFactory.php が最初からある ✅                       │
+│                                                             │
+│  【Project】                                                │
+│  → ProjectFactory.php を作成する必要あり ❌                │
+│                                                             │
+│  【Membership】                                             │
+│  → MembershipFactory.php を作成する必要あり ❌             │
+│                                                             │
+│  【Task】                                                   │
+│  → TaskFactory.php を作成する必要あり ❌                   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「3つも作るんですか...大変そう」
+
+**🐘ガネーシャ：** 「まぁ、ここはワシの教え子のニュートンくんも言うとったで。『準備を怠れば、失敗を準備することになる』ってな。テストの前に Factory を準備するのは当然の流れや！1回作れば何度でも使えるから、投資やと思いぃ」
+
+---
+
+### 🏭 Factory を作成しよう
+
+**🐘ガネーシャ：** 「ほな、3つの Factory を作るで。ターミナルでこのコマンドを実行してな」
+
+```bash
+# ProjectFactory を作成
+sail artisan make:factory ProjectFactory
+
+# MembershipFactory を作成
+sail artisan make:factory MembershipFactory
+
+# TaskFactory を作成
+sail artisan make:factory TaskFactory
+```
+
+**👩‍💻ユーザー：** 「実行しました！」
+
+```
+   INFO  Factory [database/factories/ProjectFactory.php] created successfully.
+   INFO  Factory [database/factories/MembershipFactory.php] created successfully.
+   INFO  Factory [database/factories/TaskFactory.php] created successfully.
+```
+
+**🐘ガネーシャ：** 「ええな！`database/factories/` フォルダに3つのファイルができたはずや」
+
+---
+
+### 📁 Factory ファイルの場所を確認
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Factory ファイルの場所                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  database/                                                  │
+│  └── factories/                                             │
+│      ├── UserFactory.php        ← 最初からある             │
+│      ├── ProjectFactory.php     ← 今作った！               │
+│      ├── MembershipFactory.php  ← 今作った！               │
+│      └── TaskFactory.php        ← 今作った！               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📝 ProjectFactory の中身を書こう
+
+**🐘ガネーシャ：** 「作ったばかりの Factory は中身が空っぽや。`definition()` の中身を書く必要があるで」
+
+```php
+<?php
+// database/factories/ProjectFactory.php
+
+namespace Database\Factories;
+
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class ProjectFactory extends Factory
+{
+    /**
+     * モデルのデフォルト状態を定義
+     */
+    public function definition(): array
+    {
+        return [
+            'name' => $this->faker->sentence(3),      // ランダムな名前
+            'is_archived' => false,              // アーカイブされてない
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「`$this->faker->sentence(3)` は3単語のランダムな文章を作るんでしたよね！」
+
+**🐘ガネーシャ：** 「せや！前回学んだ faker メソッドやな。ちゃんと覚えとるやん」
+
+---
+
+### 📝 MembershipFactory の中身を書こう
+
+```php
+<?php
+// database/factories/MembershipFactory.php
+
+namespace Database\Factories;
+
+use App\Models\Project;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class MembershipFactory extends Factory
+{
+    /**
+     * モデルのデフォルト状態を定義
+     */
+    public function definition(): array
+    {
+        return [
+            'user_id' => User::factory(),        // User を自動生成
+            'project_id' => Project::factory(),  // Project を自動生成
+            'role' => 'project_member',          // デフォルトは一般メンバー
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「あれ？`User::factory()` とか `Project::factory()` ってどういう意味ですか？」
+
+**🐘ガネーシャ：** 「**ええ質問や！** これはな、Membership を作る時に、関連する User や Project も一緒に作ってくれるという意味なんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Factory での関連付け                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  'user_id' => User::factory()                               │
+│                                                             │
+│  これを書くと...                                            │
+│  1. User を Factory で自動生成                              │
+│  2. その User の id を user_id に設定                       │
+│                                                             │
+│  → Membership::factory()->create() だけで                  │
+│     User、Project、Membership が全部作られる！             │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  でも今回は、すでに作った User を使いたいから...            │
+│                                                             │
+│  Membership::factory()->create([                            │
+│      'user_id' => $user->id,    ← 既存のユーザーを指定     │
+│      'project_id' => $project->id,                          │
+│  ]);                                                        │
+│                                                             │
+│  → 指定した値が優先されるから、自動生成されない！          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！デフォルト値を設定しておいて、テストで必要に応じて上書きするんですね」
+
+**🐘ガネーシャ：** 「そういうこと！Factory は『とりあえず動くデフォルト』を設定しておくんや」
+
+---
+
+### 📝 TaskFactory の中身を書こう
+
+```php
+<?php
+// database/factories/TaskFactory.php
+
+namespace Database\Factories;
+
+use App\Models\Project;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+class TaskFactory extends Factory
+{
+    /**
+     * モデルのデフォルト状態を定義
+     */
+    public function definition(): array
+    {
+        return [
+            'project_id' => Project::factory(),
+            'title' => $this->faker->sentence(3),
+            'description' => $this->faker->paragraph(),
+            'status' => 'todo',                  // デフォルトは todo
+            'created_by' => User::factory(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「status のデフォルトは todo なんですね」
+
+**🐘ガネーシャ：** 「せや。タスクは最初 todo から始まるからな。これも**アプリの仕様に合わせた設定**や」
+
+---
+
+### 📊 Factory 準備完了！
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Factory 作成まとめ                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  make:factory でファイルを作成                          │
+│      sail artisan make:factory ProjectFactory               │
+│                                                             │
+│  2️⃣  definition() にデフォルト値を書く                      │
+│      'name' => $this->faker->sentence(3),                   │
+│      'status' => 'todo',                                    │
+│                                                             │
+│  3️⃣  関連するモデルは Factory で自動生成                    │
+│      'user_id' => User::factory(),                          │
+│      → テストで上書きすれば指定した値が使われる            │
+│                                                             │
+│  これで Project::factory()->create() が使える！             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「よし、Factory の準備ができました！」
+
+**🐘ガネーシャ：** 「ほな、本題のテストを書いていこか！」
+
+---
+
+## 📖 第2章：プロジェクト一覧 API をテストしよう
 
 ### 🎭 テスト対象の API を確認
 
@@ -211,7 +474,6 @@ use App\Models\Membership;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ProjectApiTest extends TestCase
@@ -259,7 +521,7 @@ class ProjectApiTest extends TestCase
 }
 ```
 
-**👩‍💻ユーザー：** 「おお、Arrange が長くなりましたね！」
+**👩‍💻ユーザー：** 「おお、さっき作った Factory が使えてる！」
 
 ---
 
@@ -285,9 +547,9 @@ $project = Project::factory()->create([
 ]);
 ```
 
-**🐘ガネーシャ：** 「次に、プロジェクトを作る。Factory は User だけやなく、Project にも使えるんや」
+**🐘ガネーシャ：** 「次に、プロジェクトを作る。**さっき作った ProjectFactory** を使っとるで！」
 
-**👩‍💻ユーザー：** 「Project::factory() も使えるんですね！」
+**👩‍💻ユーザー：** 「Factory を準備したおかげで1行で作れるんですね！」
 
 ```php
 // ユーザーをプロジェクトに参加させる
@@ -435,7 +697,7 @@ sail artisan test --filter=ProjectApiTest
 
 ---
 
-## 📖 第2章：参加していないプロジェクトは表示されないことをテスト
+## 📖 第3章：参加していないプロジェクトは表示されないことをテスト
 
 ### 🎭 逆のパターンも確認しよう
 
@@ -523,7 +785,7 @@ sail artisan test --filter=ProjectApiTest
 
 ---
 
-## 📖 第3章：タスク作成 API をテストしよう
+## 📖 第4章：タスク作成 API をテストしよう
 
 ### 🎭 POST リクエストのテスト
 
@@ -582,7 +844,6 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TaskApiTest extends TestCase
@@ -697,7 +958,7 @@ sail artisan test --filter=TaskApiTest
 
 ---
 
-## 📖 第4章：タスク開始 API をテストしよう
+## 📖 第5章：タスク開始 API をテストしよう
 
 ### 🎭 状態を変更する API
 
@@ -788,7 +1049,7 @@ public function test_todoステータスのタスクを開始できる(): void
 
 **👩‍💻ユーザー：** 「Task も Factory で作れるんですね！」
 
-**🐘ガネーシャ：** 「せや。`status => 'todo'` を指定して、開始前の状態を作っとるんや」
+**🐘ガネーシャ：** 「せや。**さっき作った TaskFactory** を使っとるで。`status => 'todo'` を指定して、開始前の状態を作っとるんや」
 
 ---
 
@@ -841,7 +1102,7 @@ sail artisan test --filter=TaskApiTest
 
 ---
 
-## 📖 第5章：テストをまとめて整理しよう
+## 📖 第6章：テストをまとめて整理しよう
 
 ### 🎭 setUp メソッドで共通処理をまとめる
 
@@ -982,21 +1243,26 @@ class TaskApiTest extends TestCase
 │                    📝 Lesson 7-4 まとめ                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1️⃣  複数テーブルのテストデータ準備                         │
+│  1️⃣  Factory の作成                                         │
+│      → make:factory で新しい Factory を作成                │
+│      → definition() にデフォルト値を定義                   │
+│      → User::factory() で関連モデルも自動生成できる        │
+│                                                             │
+│  2️⃣  複数テーブルのテストデータ準備                         │
 │      → User, Project, Membership を関連付けて作成          │
 │      → Membership がないとプロジェクトにアクセスできない   │
 │                                                             │
-│  2️⃣  新しい assert メソッド                                 │
+│  3️⃣  新しい assert メソッド                                 │
 │      → assertJsonCount(): 配列の件数を確認                 │
 │      → assertJsonFragment(): JSONのどこかに値があるか確認  │
 │      → assertDatabaseHas(): DBに実際に保存されてるか確認   │
 │                                                             │
-│  3️⃣  POST リクエストのテスト                                │
+│  4️⃣  POST リクエストのテスト                                │
 │      → postJson() でデータを送信                           │
 │      → 201 Created を期待                                  │
 │      → レスポンスとDBの両方を確認                          │
 │                                                             │
-│  4️⃣  setUp メソッドで共通処理をまとめる                     │
+│  5️⃣  setUp メソッドで共通処理をまとめる                     │
 │      → 各テストの前に実行される                            │
 │      → 重複するコードを減らせる                            │
 │                                                             │
@@ -1020,11 +1286,13 @@ class TaskApiTest extends TestCase
 │  Lesson 7-3: /api/user                                      │
 │  └─ DB あり（User のみ）、認証あり                         │
 │  └─ Factory、RefreshDatabase、actingAs を学んだ            │
+│  └─ Factory ファイルの場所と作り方を学んだ                 │
 │                                                             │
 │        ↓ レベルアップ！                                    │
 │                                                             │
 │  Lesson 7-4: /api/projects, /api/tasks                      │
 │  └─ DB あり（複数テーブル）、認証あり                      │
+│  └─ 新しい Factory を作成して使った                        │
 │  └─ 関連データの準備、POST テスト、setUp を学んだ         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
