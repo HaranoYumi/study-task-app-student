@@ -75,10 +75,10 @@ sail artisan make:controller Api/TestController
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
-class TestController extends Controller
+class TestController extends ApiController
 {
     /**
      * テスト用：シンプルなレスポンスを返す
@@ -94,10 +94,10 @@ class TestController extends Controller
     /**
      * テスト用：受け取ったデータをそのまま返す
      */
-    public function echo(): JsonResponse
+    public function echo(Request $request): JsonResponse
     {
         return response()->json([
-            'received' => request()->all(),
+            'received' => $request->all(),
         ]);
     }
 }
@@ -259,36 +259,29 @@ class TestControllerTest extends TestCase
 
 **👩‍💻ユーザー：** 「えっ、日本語でいいんですか！？」
 
-**🐘ガネーシャ：** 「せや。2つの方法があるで」
+**🐘ガネーシャ：** 「せや。`test_` プレフィックス + 日本語メソッド名で書けるんや」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │          テストメソッド名を日本語にする方法                  │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  方法1️⃣：test_ プレフィックス + 日本語                       │
+│  test_ プレフィックス + 日本語                               │
 │                                                             │
 │    public function test_Pingエンドポイントが正常に動作する(): void
 │    {                                                        │
 │        // テストコード                                      │
 │    }                                                        │
 │                                                             │
-│  方法2️⃣：#[Test] 属性 + 日本語メソッド名                     │
-│                                                             │
-│    #[Test]                                                  │
-│    public function Pingエンドポイントが正常に動作する(): void  │
-│    {                                                        │
-│        // テストコード                                      │
-│    }                                                        │
-│                                                             │
-│  ⚠️ どちらの方法でも、メソッド名は public にすること！       │
+│  ⚠️ メソッド名は必ず public にすること！                    │
+│  ⚠️ test_ で始めることを忘れずに！                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **👩‍💻ユーザー：** 「日本語で書けると、一目で何のテストか分かりますね！」
 
-**🐘ガネーシャ：** 「せやろ？特に方法2️⃣の `#[Test]` 属性を使う方法は、`test_` プレフィックスが不要やから、より自然な日本語で書けるんや」
+**🐘ガネーシャ：** 「せやろ？`test_` の後に日本語で分かりやすく書けるから、読みやすいんや」
 
 ```php
 <?php
@@ -297,20 +290,18 @@ class TestControllerTest extends TestCase
 namespace Tests\Feature\Api;
 
 use Tests\TestCase;
-use PHPUnit\Framework\Attributes\Test;
 
 class TestControllerTest extends TestCase
 {
-    // 方法1：test_ プレフィックス + 日本語
+    // test_ プレフィックス + 日本語
     public function test_Pingエンドポイントが正常に動作する(): void
     {
         $response = $this->get('/api/test/ping');
         $response->assertStatus(200);
     }
 
-    // 方法2：#[Test] 属性 + 日本語メソッド名
-    #[Test]
-    public function Echoエンドポイントが送信したデータを返す(): void
+    // test_ プレフィックス + 日本語
+    public function test_Echoエンドポイントが送信したデータを返す(): void
     {
         $response = $this->post('/api/test/echo', ['name' => 'test']);
         $response->assertStatus(200);
@@ -321,13 +312,13 @@ class TestControllerTest extends TestCase
 **🐘ガネーシャ：** 「テストが失敗した時も、どのテストが落ちたか日本語で表示されるから、めっちゃ分かりやすいで」
 
 ```bash
-# テスト実行結果の例
-FAILED  Tests\Feature\Api\TestControllerTest > Echoエンドポイントが送信したデータを返す
+# テスト実行結果の例（失敗時）
+FAILED  Tests\Feature\Api\TestControllerTest > pingエンドポイントが正常に動作する
 ```
 
 **👩‍💻ユーザー：** 「これなら、後から見返した時も何をテストしているか一目瞭然ですね！」
 
-**🐘ガネーシャ：** 「せや。ただし、**プロジェクトのコーディング規約**によっては英語で統一している場合もあるから、チームのルールに従ってな」
+**🐘ガネーシャ：** 「ただし、**プロジェクトのコーディング規約**によっては英語で統一している場合もあるから、チームのルールに従ってな」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -342,19 +333,20 @@ FAILED  Tests\Feature\Api\TestControllerTest > Echoエンドポイントが送�
 │  ⚠️ 注意点                                                  │
 │  ・プロジェクトのコーディング規約を確認                    │
 │  ・英語統一のプロジェクトでは使わない                      │
+│  ・必ず test_ プレフィックスを付ける                        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 **👩‍💻ユーザー：** 「分かりました！このプロジェクトでは日本語を使ってもいいんですか？」
 
-**🐘ガネーシャ：** 「このプロジェクトは学習用やから、**どっちでも好きな方を使ってええで**。今回は最初なので、まずは基本の `test_` プレフィックスで進めて、慣れてきたら日本語も試してみるとええで」
+**🐘ガネーシャ：** 「このプロジェクトは学習用やから、**日本語で分かりやすく書いてええで**。`test_` プレフィックスさえ忘れんかったら、後は自由に書いてな」
 
 **👩‍💻ユーザー：** 「了解です！」
 
 ---
 
-## 📖 第3章：最初のテストを書こう
+## 📖 第3章：最初のテストを書いて実行しよう
 
 ### 🎭 ping API のテストを書く
 
@@ -378,8 +370,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    #[Test]
-    public function Pingエンドポイントが正常に動作する(): void
+    public function test_Pingエンドポイントが正常に動作する(): void
     {
         // API にリクエストを送る
         $response = $this->getJson('/api/test/ping');
@@ -400,11 +391,74 @@ class TestControllerTest extends TestCase
 
 ---
 
-### 🤔 コードの解説
+### 🚀 まず実行してみよう！
 
-**🐘ガネーシャ：** 「1行ずつ解説するで」
+**🐘ガネーシャ：** 「コードの解説の前に、**まず実行してみよか**！」
 
-**👩‍💻ユーザー：** 「お願いします！」
+**👩‍💻ユーザー：** 「え、いきなり実行ですか？」
+
+**🐘ガネーシャ：** 「せや！**動かしてから理解する**のが一番早いんや。ターミナルでこのコマンドを実行してみ」
+
+```bash
+# テストを実行
+sail artisan test --filter=TestControllerTest
+```
+
+**👩‍💻ユーザー：** 「実行します...ドキドキ...」
+
+```
+   PASS  Tests\Feature\Api\TestControllerTest
+  ✓ pingエンドポイントが正常に動作する                        0.05s
+
+  Tests:    1 passed (2 assertions)
+  Duration: 0.12s
+```
+
+**👩‍💻ユーザー：** 「通った！！緑色！！🎉」
+
+**🐘ガネーシャ：** 「おめでとう！**人生初の自動テストが成功**したな！」
+
+---
+
+### 📊 結果の見方
+
+**🐘ガネーシャ：** 「ほな、この結果が何を意味してるか説明するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  テスト結果の見方                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   PASS  Tests\Feature\Api\TestControllerTest                │
+│   └─ このテストファイルが PASS（成功）したで                │
+│                                                             │
+│   ✓ pingエンドポイントが正常に動作する            0.05s     │
+│   └─ test_Pingエンドポイントが正常に動作する メソッドが成功 │
+│      0.05秒で実行完了                                       │
+│                                                             │
+│   Tests:    1 passed (2 assertions)                         │
+│   └─ 1つのテストが成功、2つの検証（assert）を実行          │
+│      assertStatus と assertJson の2つ                       │
+│                                                             │
+│   Duration: 0.12s                                           │
+│   └─ 全体で0.12秒で完了                                     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「0.12秒！Postman だと1分くらいかかってたのに！」
+
+**🐘ガネーシャ：** 「せや！**約500倍速い**んや。しかも自動やから、お前は見てるだけでええ」
+
+---
+
+### 🤔 さて、このコードは何をしてるんや？
+
+**🐘ガネーシャ：** 「テストが通ったところで、**コードが何をしてるか**を1行ずつ解説するで」
+
+**👩‍💻ユーザー：** 「お願いします！結果を見てから説明を聞くと、理解しやすそうです」
+
+**🐘ガネーシャ：** 「せやろ？**動くもの見てから理解する**のが一番や！」
 
 ---
 
@@ -414,11 +468,11 @@ class TestControllerTest extends TestCase
 $response = $this->getJson('/api/test/ping');
 ```
 
-**🐘ガネーシャ：** 「この1行で、**実際に API が動く**んやで」
+**🐘ガネーシャ：** 「この1行で、**実際に API が動いた**んやで」
 
-**👩‍💻ユーザー：** 「え、本当に動くんですか？」
+**👩‍💻ユーザー：** 「え、本当に動いたんですか？」
 
-**🐘ガネーシャ：** 「せや！裏で何が起きてるか図で見せたるわ」
+**🐘ガネーシャ：** 「せや！さっきテストが通ったということは、裏でこれが起きとったんや」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -458,11 +512,11 @@ $response = $this->getJson('/api/test/ping');
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「えっ、本当に Controller が動いてるんですか！？」
+**👩‍💻ユーザー：** 「えっ、本当に Controller が動いてたんですか！？」
 
-**🐘ガネーシャ：** 「せや！**テストなのに本番と同じコードが動く**んや。だからバグがあったらテストで見つけられるんやで」
+**🐘ガネーシャ：** 「せや！**テストなのに本番と同じコードが動く**んや。だからさっきテストが通った＝Controller が正しく動いてるってことなんや」
 
-**👩‍💻ユーザー：** 「Postman で Send ボタンを押すのと同じことが起きてるんですね...！」
+**👩‍💻ユーザー：** 「Postman で Send ボタンを押すのと同じことが起きてたんですね...！」
 
 **🐘ガネーシャ：** 「その通りや！ただ、ブラウザや Postman を使わずに、**コードから直接リクエストを送ってる**だけの違いや」
 
@@ -475,6 +529,10 @@ $response->assertStatus(200);
 ```
 
 **🐘ガネーシャ：** 「これは『さっきのリクエストが成功したか？』を確認しとるんや」
+
+**👩‍💻ユーザー：** 「テスト結果に `2 assertions` って出てましたよね。これがその1つ目？」
+
+**🐘ガネーシャ：** 「せや！ええとこに気づいたな」
 
 **👩‍💻ユーザー：** 「ちょっと待ってください！」
 
@@ -642,7 +700,7 @@ $response->assertJson([
 ]);
 ```
 
-**🐘ガネーシャ：** 「これは『返ってきた JSON の中身が正しいか？』を確認しとるんや」
+**🐘ガネーシャ：** 「これが2つ目の assertion や。『返ってきた JSON の中身が正しいか？』を確認しとるんや」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -672,7 +730,7 @@ $response->assertJson([
 │  Postman: JSON を目で見て「message が pong で...」と確認 👀 │
 │                                                             │
 │  テスト:  assertJson() で自動確認 🤖                        │
-│           → 違ったら「pong のはずが ping やったで！」と     │
+│           → 違ったら「pong のはずが hello やったで！」と    │
 │             教えてくれる                                    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -680,17 +738,7 @@ $response->assertJson([
 
 **👩‍💻ユーザー：** 「なるほど...！Controller が返す値と、テストで期待する値を比較してるんですね」
 
-**🐘ガネーシャ：** 「せや！もし Controller のコードを誰かが間違えて変更したら...」
-
-```php
-// もし誰かがこう書き換えたら...
-return response()->json([
-    'message' => 'hello',  // ← pong じゃなくなった！
-    'status' => 'ok',
-]);
-```
-
-**🐘ガネーシャ：** 「テストを実行した瞬間に『pong のはずが hello やったで！』ってエラーになるんや」
+**🐘ガネーシャ：** 「せや！もし Controller のコードを誰かが間違えて変更したら、テストが失敗して気づけるんや」
 
 **👩‍💻ユーザー：** 「だからバグを早く見つけられるんですね...！」
 
@@ -739,75 +787,9 @@ return response()->json([
 
 **👩‍💻ユーザー：** 「Postman でやってたことが全部コードになってる！」
 
-**🐘ガネーシャ：** 「せやろ？ほな、実行してみよか！」
-
 ---
 
-## 📖 第4章：テストを実行しよう！
-
-### 🎭 テスト実行コマンド
-
-**🐘ガネーシャ：** 「テストを実行するコマンドはこれや」
-
-```bash
-# 特定のテストファイルだけ実行
-sail artisan test --filter=TestControllerTest
-
-```
-
-**👩‍💻ユーザー：** 「ドキドキ...実行します！」
-
----
-
-### 🎉 テスト結果を見る
-
-```
-   PASS  Tests\Feature\Api\TestControllerTest
-  ✓ ping returns pong                                        0.05s
-
-  Tests:    1 passed (2 assertions)
-  Duration: 0.12s
-```
-
-**👩‍💻ユーザー：** 「通った！！緑色！！🎉」
-
-**🐘ガネーシャ：** 「おめでとう！**人生初の自動テストが成功**したな！」
-
----
-
-### 📊 結果の見方
-
-**🐘ガネーシャ：** 「テスト結果の見方を説明するで」
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  テスト結果の見方                            │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   PASS  Tests\Feature\Api\TestControllerTest                │
-│   └─ このテストファイルが PASS（成功）したで                │
-│                                                             │
-│   ✓ ping returns pong                            0.05s      │
-│   └─ test_ping_returns_pong メソッドが成功                  │
-│      0.05秒で実行完了                                       │
-│                                                             │
-│   Tests:    1 passed (2 assertions)                         │
-│   └─ 1つのテストが成功、2つの検証（assert）を実行          │
-│      assertStatus と assertJson の2つ                       │
-│                                                             │
-│   Duration: 0.12s                                           │
-│   └─ 全体で0.12秒で完了                                     │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**👩‍💻ユーザー：** 「0.12秒！Postman だと1分くらいかかってたのに！」
-
-**🐘ガネーシャ：** 「せや！**約500倍速い**んや。しかも自動やから、お前は見てるだけでええ」
-
----
-
-## 📖 第5章：テストの基本パターン（AAA パターン）
+## 📖 第4章：テストの基本パターン（AAA パターン）
 
 ### 🎭 テストには決まった書き方がある
 
@@ -841,8 +823,7 @@ sail artisan test --filter=TestControllerTest
 **🐘ガネーシャ：** 「さっき書いたテストを AAA パターンで見てみよか」
 
 ```php
-#[Test]
-public function Pingエンドポイントが正常に動作する(): void
+public function test_Pingエンドポイントが正常に動作する(): void
 {
     // ============================================
     // 1. Arrange（準備）
@@ -904,7 +885,7 @@ public function Pingエンドポイントが正常に動作する(): void
 
 ---
 
-## 📖 第6章：もう1つテストを追加しよう
+## 📖 第5章：もう1つテストを追加しよう
 
 ### 🎭 echo API のテストを追加
 
@@ -928,8 +909,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/ping が正しいレスポンスを返す
      */
-    #[Test]
-    public function Pingエンドポイントが正常に動作する(): void
+    public function test_Pingエンドポイントが正常に動作する(): void
     {
         // 1. Arrange（準備）
         // → 認証不要なので、特になし
@@ -948,8 +928,7 @@ class TestControllerTest extends TestCase
     /**
      * /api/test/echo が送ったデータをそのまま返す
      */
-    #[Test]
-    public function Echoエンドポイントが送信したデータを返す(): void
+    public function test_Echoエンドポイントが送信したデータを返す(): void
     {
         // ============================================
         // 1. Arrange（準備）
@@ -978,39 +957,42 @@ class TestControllerTest extends TestCase
 }
 ```
 
-**👩‍💻ユーザー：** 「今度は Arrange で送るデータを準備してますね！」
-
-**🐘ガネーシャ：** 「そこに気づいたか！ええな。今度は POST リクエストやから、送るデータが必要なんや」
+**👩‍💻ユーザー：** 「保存しました！」
 
 ---
 
-### 📊 GET と POST の違い
+### 🚀 まず実行してみよう！
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                  GET と POST の違い                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  【GET リクエスト】                                         │
-│  $this->getJson('/api/test/ping');                          │
-│  → データを送らずにリクエスト                              │
-│  → Postman で「GET を選んで Send」と同じ                   │
-│                                                             │
-│  【POST リクエスト】                                        │
-│  $this->postJson('/api/test/echo', $sendData);              │
-│  → データを送ってリクエスト                                │
-│  → Postman で「POST を選んで Body に JSON 入れて Send」と同じ│
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+**🐘ガネーシャ：** 「さっきと同じく、**まず実行**してみよか！」
+
+```bash
+sail artisan test --filter=TestControllerTest
 ```
 
-**👩‍💻ユーザー：** 「なるほど、POST はデータを一緒に送るんですね」
+**👩‍💻ユーザー：** 「実行します...」
 
-**🐘ガネーシャ：** 「せや！ほな、echo テストのコードを1行ずつ解説するで」
+```
+   PASS  Tests\Feature\Api\TestControllerTest
+  ✓ pingエンドポイントが正常に動作する                        0.05s
+  ✓ echoエンドポイントが送信したデータを返す                  0.03s
+
+  Tests:    2 passed (4 assertions)
+  Duration: 0.15s
+```
+
+**👩‍💻ユーザー：** 「2つとも通った！」
+
+**🐘ガネーシャ：** 「**0.15秒で2つのテストが完了**や。Postman で同じことやったら3〜4分はかかるやろ？」
+
+**👩‍💻ユーザー：** 「すごい速さ...！」
 
 ---
 
 ### 🤔 echo テストのコード解説
+
+**🐘ガネーシャ：** 「ほな、echo テストのコードを解説するで。今度は Arrange で送るデータを準備してるのがポイントや」
+
+---
 
 #### 🔍 Arrange（準備）- 送るデータを用意
 
@@ -1057,6 +1039,63 @@ $sendData = [
 
 **👩‍💻ユーザー：** 「Postman だと4ステップかかるのに、コードだと3行で終わる...！」
 
+**🐘ガネーシャ：** 「そうや。そして、ここで準備した `$sendData` は、Controller 側で引数の `Request $request` として受け取れるんや」
+
+**👩‍💻ユーザー：** 「あ！Controller のコードに `Request $request` って書いてありましたね！」
+
+```php
+// Controller 側（TestController.php の echo メソッド）
+public function echo(Request $request): JsonResponse
+{
+    return response()->json([
+        'received' => $request->all(),  // ← ここで受け取る！
+    ]);
+}
+```
+
+**🐘ガネーシャ：** 「せや。テストで送った `$sendData` が、Controller の引数 `$request` として渡されて、`$request->all()` で取得できるんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          テストデータと Controller の関係                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【テスト側】                                               │
+│                                                             │
+│  $sendData = [                                              │
+│      'name' => 'テスト太郎',                                │
+│      'age' => 25,                                           │
+│  ];                                                         │
+│                                                             │
+│  $this->postJson('/api/test/echo', $sendData);              │
+│                    │                                        │
+│                    │ このデータが...                        │
+│                    ▼                                        │
+│                                                             │
+│  【Controller 側】                                          │
+│                                                             │
+│  public function echo(Request $request): JsonResponse       │
+│  {                        ↑                                 │
+│                           │                                 │
+│                           ここに $sendData が届く！         │
+│                                                             │
+│      return response()->json([                              │
+│          'received' => $request->all(),  // ← 取得！       │
+│      ]);                                                    │
+│  }                                                          │
+│                                                             │
+│  $request->all() = [                                        │
+│      'name' => 'テスト太郎',                                │
+│      'age' => 25,                                           │
+│  ]                                                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！テストで送ったデータが、Controller で受け取れるんですね！」
+
+**🐘ガネーシャ：** 「その通りや。だから、実際の API リクエストと全く同じ動きをするんや」
+
 ---
 
 #### 🔍 Act（実行）- POST リクエストを送る
@@ -1069,66 +1108,29 @@ $response = $this->postJson('/api/test/echo', $sendData);
 
 **👩‍💻ユーザー：** 「`getJson` と違って、第2引数にデータを渡すんですね！」
 
-**🐘ガネーシャ：** 「せや！裏で何が起きてるか見せたるわ」
+**🐘ガネーシャ：** 「せや。この `$sendData` が Controller の引数 `Request $request` として渡されて、`$request->all()` で取得できるわけや」
+
+---
+
+### 📊 GET と POST の違い
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│        postJson() を実行すると裏で何が起きる？              │
+│                  GET と POST の違い                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
+│  【GET リクエスト】                                         │
+│  $this->getJson('/api/test/ping');                          │
+│  → データを送らずにリクエスト                              │
+│  → Postman で「GET を選んで Send」と同じ                   │
+│                                                             │
+│  【POST リクエスト】                                        │
 │  $this->postJson('/api/test/echo', $sendData);              │
-│          │                                                  │
-│          ▼                                                  │
-│  ┌─────────────────────────────────────────┐                │
-│  │ 1️⃣  Laravel が /api/test/echo への      │                │
-│  │    POST リクエストを受け取ったフリをする│                │
-│  │                                         │                │
-│  │    📦 送信データ:                        │                │
-│  │    {"name":"テスト太郎","age":25}        │                │
-│  └─────────────────────────────────────────┘                │
-│          │                                                  │
-│          ▼                                                  │
-│  ┌─────────────────────────────────────────┐                │
-│  │ 2️⃣  routes/api.php を見て               │                │
-│  │    「あ、TestController の echo() やな」│                │
-│  └─────────────────────────────────────────┘                │
-│          │                                                  │
-│          ▼                                                  │
-│  ┌─────────────────────────────────────────┐                │
-│  │ 3️⃣  TestController の echo() を実行     │                │
-│  │                                         │                │
-│  │    public function echo()               │                │
-│  │    {                                    │                │
-│  │        // request()->all() で           │                │
-│  │        // 送られてきたデータを取得      │                │
-│  │        return response()->json([        │                │
-│  │            'received' => request()->all()│               │
-│  │        ]);                              │                │
-│  │    }                                    │                │
-│  └─────────────────────────────────────────┘                │
-│          │                                                  │
-│          ▼                                                  │
-│  ┌─────────────────────────────────────────┐                │
-│  │ 4️⃣  レスポンスが返ってくる              │                │
-│  │                                         │                │
-│  │    {                                    │                │
-│  │      "received": {                      │                │
-│  │        "name": "テスト太郎",            │                │
-│  │        "age": 25                        │                │
-│  │      }                                  │                │
-│  │    }                                    │                │
-│  │    ステータスコード: 200                │                │
-│  └─────────────────────────────────────────┘                │
-│          │                                                  │
-│          ▼                                                  │
-│  $response に結果が入る！                                   │
+│  → データを送ってリクエスト                                │
+│  → Postman で「POST を選んで Body に JSON 入れて Send」と同じ│
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
-
-**👩‍💻ユーザー：** 「`request()->all()` で送ったデータを受け取って、それをそのまま返してるんですね！」
-
-**🐘ガネーシャ：** 「せや！echo（こだま）っていう名前の通り、送ったものがそのまま返ってくるんや」
 
 ---
 
@@ -1178,122 +1180,76 @@ $response->assertJson([
 └─────────────────────────────────────────────────────────────┘
 ```
 
----
+**👩‍💻ユーザー：** 「送ったデータと返ってきたデータが一致してるか確認してるんですね！」
 
-#### 💥 もし Controller にバグがあったら？
-
-**👩‍💻ユーザー：** 「echo も、エラーになったらどうなるんですか？」
-
-**🐘ガネーシャ：** 「ええ質問や。例えば、Controller をこう間違えたとするやろ？」
-
-```php
-// 間違ったコード
-public function echo(): JsonResponse
-{
-    return response()->json([
-        'received' => $request->all(),  // ← $request が定義されてない！💥
-    ]);
-}
-```
-
-**🐘ガネーシャ：** 「`$request` を定義し忘れたら、エラーになるんや」
+**🐘ガネーシャ：** 「せや！ここで全体の流れをおさらいしとこか」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              バグがあった時のテスト結果                       │
+│          echo API のデータの流れ（全体像）                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│   FAIL  Tests\Feature\Api\TestControllerTest                │
-│  ✕ echo returns received data                   0.08s       │
-│  ┐                                                          │
-│  │ Expected status code 200 but received 500.               │
-│  │                                                          │
-│  │ at tests/Feature/Api/TestControllerTest.php:35           │
-│  ┴                                                          │
+│  1️⃣  Arrange（準備）                                        │
 │                                                             │
-│  → 「200 を期待してたけど、500 が返ってきたで！」          │
-│  → つまり Controller でエラーが起きてる！                  │
+│     $sendData = [                                           │
+│         'name' => 'テスト太郎',                             │
+│         'age' => 25,                                        │
+│     ];                                                      │
+│                                                             │
+│  2️⃣  Act（実行）                                            │
+│                                                             │
+│     $response = $this->postJson('/api/test/echo', $sendData);│
+│                                  │                          │
+│                                  ▼                          │
+│                                                             │
+│     【Controller が受け取る】                               │
+│     public function echo(Request $request): JsonResponse    │
+│     {                             ↑                         │
+│                                   │                         │
+│                                   ここに $sendData が届く！ │
+│                                                             │
+│         return response()->json([                           │
+│             'received' => $request->all(),                  │
+│             //            ↑                                 │
+│             //            ここで取得！                      │
+│         ]);                                                 │
+│     }                                                       │
+│                                  │                          │
+│                                  ▼                          │
+│                                                             │
+│     【レスポンス】                                          │
+│     {                                                       │
+│         "received": {                                       │
+│             "name": "テスト太郎",                           │
+│             "age": 25                                       │
+│         }                                                   │
+│     }                                                       │
+│                                  │                          │
+│                                  ▼                          │
+│                                                             │
+│  3️⃣  Assert（検証）                                         │
+│                                                             │
+│     $response->assertJson([                                 │
+│         'received' => [                                     │
+│             'name' => 'テスト太郎',  // ← 送った値と一致！ │
+│             'age' => 25,              // ← 送った値と一致！│
+│         ],                                                  │
+│     ]);                                                     │
+│                                                             │
+│     ✅ テスト成功！                                         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「500 が返ってきたら『Controller にバグがある』ってすぐ分かるんですね！」
+**👩‍💻ユーザー：** 「なるほど！テストで送った `$sendData` が Controller の引数 `$request` になって、`$request->all()` で取得したものが `received` に入って返ってくるんですね！」
 
-**🐘ガネーシャ：** 「せや！これがテストの力や。**バグを自動で見つけてくれる**んやで」
+**🐘ガネーシャ：** 「その通りや！この**データの流れ**を理解しておけば、どんな API のテストも書けるようになるで」
 
----
-
-#### 💥 もしデータの加工を間違えたら？
-
-**🐘ガネーシャ：** 「もう1つ例を見せたるわ。エラーにはならへんけど、結果が違う場合や」
-
-```php
-// 間違ったコード（エラーにはならない）
-public function echo(): JsonResponse
-{
-    return response()->json([
-        'data' => request()->all(),  // ← 'received' じゃなくて 'data' にしてしまった！
-    ]);
-}
-```
-
-**🐘ガネーシャ：** 「この場合、500 エラーにはならへん。でも...」
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              キーを間違えた時のテスト結果                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   FAIL  Tests\Feature\Api\TestControllerTest                │
-│  ✕ echo returns received data                   0.06s       │
-│  ┐                                                          │
-│  │ Unable to find JSON:                                     │
-│  │                                                          │
-│  │ Expected: {"received":{"name":"テスト太郎","age":25}}    │
-│  │ Actual:   {"data":{"name":"テスト太郎","age":25}}        │
-│  │                                                          │
-│  │ at tests/Feature/Api/TestControllerTest.php:38           │
-│  ┴                                                          │
-│                                                             │
-│  → 「received を期待してたけど、実際は data やったで！」   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**👩‍💻ユーザー：** 「おお！キー名が違うのもちゃんと検出してくれる！」
-
-**🐘ガネーシャ：** 「せや！**Expected（期待値）**と**Actual（実際の値）**を比較して、違いを教えてくれるんや」
-
-**👩‍💻ユーザー：** 「これなら、API の仕様が変わってもすぐ気づけますね！」
-
-**🐘ガネーシャ：** 「その通りや！誰かが間違えてコードを変更しても、テストが『おい、仕様と違うで！』って教えてくれるんや。さすがワシの弟子やな」
+**👩‍💻ユーザー：** 「すごく分かりやすいです！」
 
 ---
 
-### 🎭 テストを実行
-
-**🐘ガネーシャ：** 「ほな、正しいコードに戻して実行してみよか」
-
-```bash
-sail artisan test --filter=TestControllerTest
-```
-
-```
-   PASS  Tests\Feature\Api\TestControllerTest
-  ✓ ping returns pong                                        0.05s
-  ✓ echo returns received data                               0.03s
-
-  Tests:    2 passed (4 assertions)
-  Duration: 0.15s
-```
-
-**👩‍💻ユーザー：** 「2つとも通った！」
-
-**🐘ガネーシャ：** 「**0.15秒で2つのテストが完了**や。Postman で同じことやったら3〜4分はかかるやろ？」
-
----
-
-## 📖 第7章：PHPUnit と Laravel の関係
+## 📖 第6章：PHPUnit と Laravel の関係
 
 ### 🎭 PHPUnit って何？
 
@@ -1323,7 +1279,7 @@ sail artisan test --filter=TestControllerTest
 
 **👩‍💻ユーザー：** 「Laravel には最初から入ってるんですね！」
 
-**🐘ガネーシャ：** 「せや。だから `php artisan test` コマンドですぐテストが実行できるんや」
+**🐘ガネーシャ：** 「せや。だから `sail artisan test` コマンドですぐテストが実行できるんや」
 
 ---
 
@@ -1388,7 +1344,7 @@ sail artisan test --filter=TestControllerTest
 
 ---
 
-## 📖 第8章：よく使うメソッドを覚えよう
+## 📖 第7章：よく使うメソッドを覚えよう
 
 ### 🎭 HTTP リクエストを送るメソッド
 
@@ -1447,45 +1403,59 @@ sail artisan test --filter=TestControllerTest
 
 ---
 
-## 📖 第9章：テストが失敗したらどうなる？
+## 📖 第8章：テストが失敗したらどうなる？
 
 ### 🎭 わざと失敗させてみよう
 
-**🐘ガネーシャ：** 「テストが失敗した時どうなるか見てみよか」
+**🐘ガネーシャ：** 「ここまでテストが成功する様子を見てきたけど、**失敗した時**どうなるか見てみよか」
 
 **👩‍💻ユーザー：** 「え、わざと失敗させるんですか？」
 
-**🐘ガネーシャ：** 「せや。失敗した時の見方を知っておくのは大事やで」
+**🐘ガネーシャ：** 「せや！失敗を体験することで、**テストの価値**がよく分かるんや。エラーメッセージの読み方も覚えられるで」
 
 ---
 
-### 📝 期待値を間違えてみる
+### 💡 やってみよう：Controller を壊してテストを失敗させる
 
-**🐘ガネーシャ：** 「`test_ping_returns_pong` の `assertJson` を間違えてみ」
+**🐘ガネーシャ：** 「`TestController.php` の `ping` メソッドを、わざと間違った値に変えてみるで」
+
+**手順：**
+
+1. **`app/Http/Controllers/Api/TestController.php`** を開く
+2. `ping` メソッドを以下のように変更：
 
 ```php
-// わざと間違える
-$response->assertJson([
-    'message' => 'ping',  // ← pong じゃなくて ping にしてみる
-    'status' => 'ok',
-]);
+public function ping(): JsonResponse
+{
+    return response()->json([
+        'message' => 'hello',  // ← わざと「pong」を「hello」に変更！
+        'status' => 'ok',
+    ]);
+}
 ```
 
-**👩‍💻ユーザー：** 「実行してみます...」
+3. テストを実行：
 
+```bash
+sail artisan test --filter=TestControllerTest
 ```
+
+**結果：**
+
+```bash
    FAIL  Tests\Feature\Api\TestControllerTest
-  ✕ ping returns pong                                        0.08s
+  ✕ pingエンドポイントが正常に動作する                        0.08s
   ┐
   │ Failed asserting that an array contains subset Array &0 (
-  │     'message' => 'ping'
+  │     'message' => 'pong'
   │     'status' => 'ok'
   │ ).
   │ 
-  │ Actual: {"message":"pong","status":"ok"}
+  │ Actual: {"message":"hello","status":"ok"}
   │ 
   │ at tests/Feature/Api/TestControllerTest.php:20
   ┴
+  ✓ echoエンドポイントが送信したデータを返す                  0.03s
 
   Tests:    1 failed, 1 passed
 ```
@@ -1496,38 +1466,88 @@ $response->assertJson([
 
 ### 📊 エラーメッセージの読み方
 
-**🐘ガネーシャ：** 「エラーメッセージの読み方を教えるで」
+**🐘ガネーシャ：** 「このエラーメッセージ、めっちゃ丁寧に教えてくれとるやろ？読み方を解説するで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 エラーメッセージの読み方                     │
+│              エラーメッセージの読み方                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  ✕ ping returns pong                                        │
+│  ✕ pingエンドポイントが正常に動作する                       │
 │  └─ このテストが失敗したで                                  │
 │                                                             │
 │  Failed asserting that an array contains subset             │
 │  └─ 「配列に含まれてるはずの内容がなかったで」             │
 │                                                             │
-│  'message' => 'ping'                                        │
-│  └─ これを期待してた（テストコードに書いた値）             │
+│  'message' => 'pong'                                        │
+│  └─ テストが期待してた値（テストコードに書いた）           │
 │                                                             │
-│  Actual: {"message":"pong","status":"ok"}                   │
-│  └─ 実際に返ってきた値                                     │
+│  Actual: {"message":"hello","status":"ok"}                  │
+│  └─ 実際に Controller から返ってきた値                     │
 │                                                             │
 │  at tests/Feature/Api/TestControllerTest.php:20             │
 │  └─ 失敗した場所（20行目）                                 │
 │                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  まとめ：                                                   │
+│  Expected（期待値）: "pong"                                 │
+│  Actual（実際の値）: "hello"                                │
+│                                                             │
+│  → テストは "pong" を期待していたのに、                    │
+│     実際には "hello" が返ってきた！                        │
+│                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「なるほど！『ping を期待してたけど、実際は pong だった』って教えてくれてるんですね」
+**👩‍💻ユーザー：** 「すごく分かりやすいエラーメッセージですね！何が違うのか一目瞭然です！」
 
-**🐘ガネーシャ：** 「せや！このメッセージを見れば、何が間違ってるか分かるんや。元に戻しといてな」
+**🐘ガネーシャ：** 「せやろ？これが**テストの力**や。コードを変更した時に、**すぐに問題に気づける**んや」
+
+**👩‍💻ユーザー：** 「もしテストがなかったら、この変更に気づかずにデプロイしちゃうかもしれませんね...」
+
+**🐘ガネーシャ：** 「その通りや！せやからテストは大事なんや。ほな、元に戻しとこか」
 
 ---
 
-## 📖 第10章：テスト実行コマンドまとめ
+### 🔧 元に戻す
+
+**🐘ガネーシャ：** 「`TestController.php` を元に戻してな」
+
+```php
+public function ping(): JsonResponse
+{
+    return response()->json([
+        'message' => 'pong',  // ← 元に戻す
+        'status' => 'ok',
+    ]);
+}
+```
+
+**👩‍💻ユーザー：** 「戻しました！」
+
+**🐘ガネーシャ：** 「もう一度テストを実行してみ」
+
+```bash
+sail artisan test --filter=TestControllerTest
+```
+
+```
+   PASS  Tests\Feature\Api\TestControllerTest
+  ✓ pingエンドポイントが正常に動作する                        0.05s
+  ✓ echoエンドポイントが送信したデータを返す                  0.03s
+
+  Tests:    2 passed (4 assertions)
+  Duration: 0.15s
+```
+
+**👩‍💻ユーザー：** 「緑に戻った！🎉」
+
+**🐘ガネーシャ：** 「これでテストの失敗と成功、両方体験できたな！」
+
+---
+
+## 📖 第9章：テスト実行コマンドまとめ
 
 ### 🎭 よく使うコマンド
 
@@ -1547,7 +1567,7 @@ sail artisan test --filter=TestControllerTest
 # ======================================
 # 特定のテストメソッドだけ実行
 # ======================================
-sail artisan test --filter=test_ping_returns_pong
+sail artisan test --filter=test_Pingエンドポイントが正常に動作する
 
 # ======================================
 # 失敗したらすぐ止める（CI向け）
@@ -1579,14 +1599,14 @@ sail artisan test --verbose
 │      → TestController（ping, echo）                        │
 │                                                             │
 │  2️⃣  テストファイルを作成した                               │
-│      → php artisan make:test Api/TestControllerTest        │
+│      → sail artisan make:test Api/TestControllerTest        │
 │                                                             │
 │  3️⃣  テストを書いた                                         │
 │      → getJson() でリクエスト                              │
 │      → assertStatus(), assertJson() で検証                 │
 │                                                             │
 │  4️⃣  テストを実行して成功した！🎉                           │
-│      → php artisan test --filter=TestControllerTest        │
+│      → sail artisan test --filter=TestControllerTest        │
 │                                                             │
 │  5️⃣  AAA パターンを学んだ                                   │
 │      → Arrange（準備）→ Act（実行）→ Assert（検証）        │
@@ -1598,6 +1618,10 @@ sail artisan test --verbose
 │  7️⃣  Feature Test と Unit Test の違いを知った               │
 │      → Feature Test: API 全体のテスト（今回やった）        │
 │      → Unit Test: 部品単体のテスト                         │
+│                                                             │
+│  8️⃣  テストが失敗した時の見方を学んだ                       │
+│      → Expected（期待値）と Actual（実際の値）を比較       │
+│      → エラーメッセージで何が違うか一目瞭然                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
