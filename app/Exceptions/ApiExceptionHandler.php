@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Responses\ApiResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -45,7 +46,8 @@ class ApiExceptionHandler
             $exception instanceof ModelNotFoundException => $this->handleNotFound($requestId, $exception->getMessage()),
             $exception instanceof ValidationException => $this->handleValidation($exception, $requestId),
             $exception instanceof AuthenticationException => $this->handleAuthentication($requestId),
-            $exception instanceof AuthorizationException => $this->handleForbidden($exception, $requestId),
+            $exception instanceof AuthorizationException => $this->handleForbidden($exception->getMessage(), $requestId),
+            $exception instanceof AccessDeniedHttpException => $this->handleForbidden($exception->getMessage(), $requestId),
             $exception instanceof ConflictException => $this->handleConflict($exception, $requestId),
             default => $this->handleServerError($exception, $request, $requestId),
         };
@@ -61,11 +63,11 @@ class ApiExceptionHandler
 
     /**
      * 権限エラー（403）
-     * Laravel標準のAuthorizationExceptionを処理
+     * Laravel標準のAuthorizationExceptionまたはSymfonyのAccessDeniedHttpExceptionを処理
      */
-    private function handleForbidden(AuthorizationException $exception, string $requestId): JsonResponse
+    private function handleForbidden(string $message, string $requestId): JsonResponse
     {
-        return $this->response->forbidden($exception->getMessage(), $requestId);
+        return $this->response->forbidden($message, $requestId);
     }
 
     /**
