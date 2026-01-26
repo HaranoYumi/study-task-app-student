@@ -83,4 +83,177 @@ class TaskApiTest extends TestCase
             ]
         ]);
     }
+
+    // tests/Feature/Api/TaskApiTest.php に追加
+
+    /**
+     * タイトルが空の場合は422エラーになる
+     */
+    public function test_タイトルが空の場合は422エラーになる(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        // setUp で作成した user, project を使用
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/projects/{$this->project->id}/tasks", [
+                'title' => '',  // ← 空っぽ！
+                'description' => 'タスクの説明',
+            ]);
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['title']);
+
+        // タスクが作成されていないことも確認
+        $this->assertDatabaseMissing('tasks', [
+            'description' => 'タスクの説明',
+        ]);
+    }
+
+    // tests/Feature/Api/TaskApiTest.php に追加
+
+    /**
+     * 参加していないプロジェクトのタスクにはアクセスできない（403）
+     */
+    public function test_参加していないプロジェクトのタスクにはアクセスできない(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        // 他人のプロジェクトとタスクを作成
+        $otherUser = User::factory()->create();
+        $otherProject = Project::factory()->create();
+
+        Membership::factory()->create([
+            'user_id' => $otherUser->id,
+            'project_id' => $otherProject->id,
+            'role' => 'project_owner',
+        ]);
+
+        $otherTask = Task::factory()->create([
+            'project_id' => $otherProject->id,
+            'created_by' => $otherUser->id,
+        ]);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        // 参加していないプロジェクトのタスクにアクセス
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/tasks/{$otherTask->id}");
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(403);
+    }
+
+    // tests/Feature/Api/TaskApiTest.php に追加
+
+    /**
+     * 存在しないタスクにアクセスすると404エラーになる
+     */
+    public function test_存在しないタスクにアクセスすると404エラーになる(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        // setUp で作成した user を使用
+        // タスクは作成しない
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/tasks/99999');  // ← 存在しないID
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(404);
+    }
+
+    // tests/Feature/Api/TaskApiTest.php に追加
+
+    /**
+     * doing ステータスのタスクは開始できない（409）
+     */
+    public function test_doingステータスのタスクは開始できない(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        // すでに doing 状態のタスクを作成
+        $task = Task::factory()->create([
+            'project_id' => $this->project->id,
+            'created_by' => $this->user->id,
+            'status' => 'doing',  // ← すでに作業中！
+        ]);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        // 開始しようとする（でも、もう doing だから失敗するはず）
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/tasks/{$task->id}/start");
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(409);
+        $response->assertJson([
+            'message' => '未着手のタスクのみ開始できます',
+        ]);
+
+        // ステータスが変わっていないことも確認
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => 'doing',  // ← doing のまま
+        ]);
+    }
+
+    // tests/Feature/Api/TaskApiTest.php に追加
+    /**
+     * todo ステータスのタスクは完了できない（409）
+     */
+    public function test_todoステータスのタスクは完了できない(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        // todo 状態のタスクを作成
+        $task = Task::factory()->create([
+            'project_id' => $this->project->id,
+            'created_by' => $this->user->id,
+            'status' => 'todo',  // ← まだ着手してない
+        ]);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        // 完了しようとする（でも、doing を経由してないから失敗）
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/tasks/{$task->id}/complete");
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(409);
+        $response->assertJson([
+            'message' => '作業中のタスクのみ完了できます',
+        ]);
+
+        // ステータスが変わっていないことも確認
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => 'todo',  // ← todo のまま
+        ]);
+    }
 }
