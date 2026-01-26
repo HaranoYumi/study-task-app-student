@@ -176,7 +176,6 @@
 ### 📝 ログインしていない場合のテスト
 
 ```php
-<?php
 // tests/Feature/Api/ProjectApiTest.php に追加
 
 /**
@@ -200,7 +199,7 @@ public function test_未認証の場合は401エラーになる(): void
     // ============================================
     $response->assertStatus(401);
     $response->assertJson([
-        'message' => 'Unauthenticated.',
+        'message' => '認証が必要です',
     ]);
 }
 ```
@@ -255,7 +254,6 @@ public function test_未認証の場合は401エラーになる(): void
 ### 📝 タイトルが空の場合のテスト
 
 ```php
-<?php
 // tests/Feature/Api/TaskApiTest.php に追加
 
 /**
@@ -382,7 +380,6 @@ public function test_タイトルが空の場合は422エラーになる(): void
 ### 📝 権限がない場合のテスト
 
 ```php
-<?php
 // tests/Feature/Api/ProjectApiTest.php に追加
 
 /**
@@ -495,7 +492,6 @@ public function test_memberはプロジェクトを削除できない(): void
 ### 📝 存在しないデータへのアクセス
 
 ```php
-<?php
 // tests/Feature/Api/TaskApiTest.php に追加
 
 /**
@@ -535,7 +531,6 @@ public function test_存在しないタスクにアクセスすると404エラ�
 **🐘ガネーシャ：** 「ええ質問や！404 には実はもう1つのパターンがあるんや」
 
 ```php
-<?php
 /**
  * 参加していないプロジェクトのタスクにはアクセスできない（404）
  */
@@ -605,7 +600,6 @@ public function test_参加していないプロジェクトのタスクには�
 ### 📝 doing ステータスのタスクは開始できない
 
 ```php
-<?php
 // tests/Feature/Api/TaskApiTest.php に追加
 
 /**
@@ -655,7 +649,6 @@ public function test_doingステータスのタスクは開始できない(): vo
 ### 📝 todo ステータスのタスクは完了できない
 
 ```php
-<?php
 /**
  * todo ステータスのタスクは完了できない（409）
  */
