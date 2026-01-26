@@ -678,6 +678,8 @@ public function test_doingステータスのタスクは開始できない(): vo
 ### 📝 todo ステータスのタスクは完了できない
 
 ```php
+// tests/Feature/Api/TaskApiTest.php に追加
+
 /**
  * todo ステータスのタスクは完了できない（409）
  */
