@@ -46,3 +46,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/projects/{project}/members', [ProjectMemberController::class, 'store']);
     Route::delete('/projects/{project}/members/{user}', [ProjectMemberController::class, 'destroy']);
 });
+
+
+// routes/api.php の末尾に追加
+
+use App\Http\Controllers\Api\TestController;
+
+// テスト練習用（認証なし）
+Route::get('/test/ping', [TestController::class, 'ping']);
+Route::post('/test/echo', [TestController::class, 'echo']);
