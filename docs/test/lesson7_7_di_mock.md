@@ -1212,28 +1212,69 @@ class NotificationService
 
 **👩‍💻ユーザー：** 「ログ出力だけ...？メール送信しないんですか？」
 
-**🐘ガネーシャ：** 「教材用やからな。本番ではここに `Mail::send()` とか `Slack::post()` とか書くんや。でも今回の目的は**Mock の使い方を学ぶこと**やから、ログ出力で十分やで」
+**🐘ガネーシャ：** 「教材用やからログにしてるんや。でもな、もしこれが **本物のメール送信**やったらどうなると思う？」
+
+**👩‍💻ユーザー：** 「えっと...テストを実行するたびにメールが送られる？」
+
+**🐘ガネーシャ：** 「**その通りや！** 想像してみ。テストが10個あって、それぞれでタスク完了のテストをしたら...」
+
+**👩‍💻ユーザー：** 「10通のメールが届く...！😱」
+
+**🐘ガネーシャ：** 「しかもな、CI/CD で自動テストが動くたびに、コミットするたびに、何十通もメールが飛んでいくんや。Slack 通知やったら、通知の嵐でチャンネルが埋まるで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              なぜログ出力だけ？                              │
+│              😱 もし本物の通知を使ったら...                  │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  【今回の目的】                                             │
-│  ・DI の仕組みを理解する                                    │
-│  ・Mock でテストする方法を学ぶ                              │
+│  【テスト実行のたびに】                                     │
+│  ・テスト10個 × 1通 = 10通のメール                         │
+│  ・CI/CD が1日10回動く → 100通/日                         │
+│  ・開発者5人が各自テスト → 500通/日                       │
 │                                                             │
-│  【実際の実装】                                             │
-│  本番では Log::info() の代わりに...                         │
-│  ・Mail::send() でメール送信                                │
-│  ・Http::post() で Slack 送信                               │
-│  ・etc...                                                   │
+│  【Slack 通知の場合】                                       │
+│  ・#general が「タスク完了しました」で埋まる               │
+│  ・本物の通知が見つけられなくなる                          │
+│  ・チームメンバーから苦情が来る 😢                         │
 │                                                             │
-│  でも、Mock の学習では「何を呼ぶか」は関係ない！            │
-│  大事なのは「Mock に差し替える仕組み」を理解すること        │
+│  【外部 API の場合】                                        │
+│  ・API の呼び出し回数制限に引っかかる                      │
+│  ・テストのたびに課金される 💸                             │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**👩‍💻ユーザー：** 「それは迷惑すぎる...！」
+
+**🐘ガネーシャ：** 「せやろ？だから**テストの時だけ偽物（Mock）に差し替える**んや。Mock なら何回呼んでもメールは1通も飛ばん。これが Mock を使う最大の理由やで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              なぜログ出力だけ？（教材用）                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【今回の教材】                                             │
+│  ・ログ出力にしてるから、実害はない                         │
+│  ・でも「Mock の使い方を学ぶ」には十分！                   │
+│                                                             │
+│  【実際の実装（本番）】                                     │
+│  本番では Log::info() の代わりに...                         │
+│  ・Mail::send() でメール送信                                │
+│  ・Http::post() で Slack 送信                               │
+│  ・外部 API 呼び出し                                        │
+│  → これらは **テストで本物を動かしたくない！**            │
+│                                                             │
+│  【Mock の価値】                                            │
+│  ・テストで本物の通知を送らない                            │
+│  ・「呼ばれたかどうか」だけ検証できる                      │
+│  ・高速にテストできる（外部通信なし）                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！今回はログだから実害ないけど、本番を想定して Mock の使い方を学ぶんですね！」
+
+**🐘ガネーシャ：** 「完璧や！さすがワシの弟子や」
 
 ---
 
@@ -1272,8 +1313,8 @@ class CompleteTaskUseCase
      * new しないことで、テスト時に Mock に差し替え可能になる
      */
     public function __construct(
-        private NotificationService $notificationService,  // ← 追加
         private ProjectRules $projectRules,
+        private NotificationService $notificationService,  // ← 追加
     ) {}
 
     /**
@@ -1292,11 +1333,9 @@ class CompleteTaskUseCase
         $this->projectRules->ensureMember($task->project, $user);
 
         // ========================================
-        // 2. ビジネスルールチェック
+        // 2. ビジネスルールチェック（UseCase固有の制約）
         // ========================================
-        if ($task->status !== 'doing') {
-            throw new ConflictException('作業中のタスクのみ完了できます');
-        }
+        $this->ensureCanComplete($task);
 
         // ========================================
         // 3. ステータス更新
@@ -1309,19 +1348,24 @@ class CompleteTaskUseCase
         // ========================================
         // ✅ DI で受け取った $this->notificationService を使う
         // テスト時は Mock が渡されるので、本物は動かない
-        $this->notificationService->notify('task_completed', $user, [
-            'task_id' => $task->id,
-            'task_title' => $task->title,
-            'project_id' => $task->project_id,
-            'project_name' => $task->project->name,
-        ]);
+        $this->notificationService->notify('task_completed', $user, $task->toArray());
 
         // ========================================
         // 5. リレーションロード
         // ========================================
-        $task->load('createdBy', 'project');
+        $task->load('createdBy');
 
         return $task;
+    }
+
+    /**
+     * タスクが「完了」に遷移可能か検証する（UseCase固有の制約）
+     */
+    private function ensureCanComplete(Task $task): void
+    {
+        if (!$task->isDoing()) {
+            throw new ConflictException('作業中のタスクのみ完了できます');
+        }
     }
 }
 ```
@@ -1343,7 +1387,10 @@ class CompleteTaskUseCase
 │  2️⃣  コンストラクタに追加                                   │
 │      private NotificationService $notificationService       │
 │                                                             │
-│  3️⃣  execute() 内で notify() を呼び出す                     │
+│  3️⃣  ビジネスルールを private メソッドに分離               │
+│      ensureCanComplete() で isDoing() をチェック            │
+│                                                             │
+│  4️⃣  execute() 内で notify() を呼び出す                     │
 │      $this->notificationService->notify('task_completed', ...)│
 │                                                             │
 │  ✅ new NotificationService() とは書いてない！              │
@@ -1392,10 +1439,11 @@ tail -f storage/logs/laravel.log
     "actor_id": 1,
     "actor_name": "山田太郎",
     "payload": {
-        "task_id": 5,
-        "task_title": "サンプルタスク",
+        "id": 5,
+        "title": "サンプルタスク",
         "project_id": 1,
-        "project_name": "プロジェクトA"
+        "status": "done",
+        ...
     }
 }
 ```
@@ -1606,7 +1654,7 @@ $mock->shouldReceive('notify')
     ->with(
         'task_completed',
         Mockery::on(fn($actor) => $actor->id === 1),
-        Mockery::on(fn($payload) => $payload['task_id'] === 5)
+        Mockery::on(fn($payload) => $payload['id'] === 5)
     );
 ```
 
@@ -1614,7 +1662,7 @@ $mock->shouldReceive('notify')
 |------|------|
 | `Mockery::on()` | 引数をコールバック関数で検証 |
 | `fn($actor) => $actor->id === 1` | 「$actor->id が 1 なら OK」 |
-| `fn($payload) => ...` | 「$payload['task_id'] が 5 なら OK」 |
+| `fn($payload) => ...` | 「$payload['id'] が 5 なら OK」 |
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1628,7 +1676,7 @@ $mock->shouldReceive('notify')
 │      → Mockery::on(fn($u) => $u->id === 1) で ID だけ比較  │
 │                                                             │
 │  例: 配列の一部だけ検証したい時                             │
-│      → Mockery::on(fn($p) => $p['task_id'] === 5)          │
+│      → Mockery::on(fn($p) => $p['id'] === 5)               │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -1647,7 +1695,7 @@ $mock->shouldReceive('notify')
     ->withArgs(function ($type, $actor, $payload) use ($task) {
         return $type === 'task_completed'
             && $actor->id === 1
-            && $payload['task_id'] === $task->id;
+            && $payload['id'] === $task->id;
     });
 ```
 
@@ -1683,7 +1731,7 @@ $mock->shouldNotReceive('notify');
 $mock = Mockery::mock(NotificationService::class);
 $mock->shouldReceive('notify')
     ->once()
-    ->with('task_completed', Mockery::any(), Mockery::any());
+    ->with('task_completed', Mockery::any(), Mockery::any());;
 
 
 // ============================================
@@ -1695,7 +1743,7 @@ $mock->shouldReceive('notify')
     ->with(
         'task_completed',
         Mockery::on(fn($actor) => $actor->id === $this->user->id),
-        Mockery::on(fn($payload) => $payload['task_id'] === $task->id)
+        Mockery::on(fn($payload) => $payload['id'] === $task->id)
     );
 
 
@@ -1708,8 +1756,8 @@ $mock->shouldReceive('notify')
     ->withArgs(function ($type, $actor, $payload) use ($task) {
         return $type === 'task_completed'
             && $actor->id === $this->user->id
-            && $payload['task_id'] === $task->id
-            && $payload['task_title'] === $task->title;
+            && $payload['id'] === $task->id
+            && $payload['title'] === $task->title;
     });
 ```
 
@@ -1719,156 +1767,171 @@ $mock->shouldReceive('notify')
 
 ---
 
-## 📖 第7章：Mock を使ったテストを書こう
+## 📖 第7章：既存のテストに Mock を組み込もう
 
-### 📝 テストファイルを作成
+### 🤔 Mock を使ったテストは「通知のテスト」ではない
 
-**🐘ガネーシャ：** 「ほな、テストファイルを作るで」
+**🐘ガネーシャ：** 「ここで大事なことを確認するで」
 
-```bash
-sail artisan make:test Api/TaskCompleteWithNotificationTest
+**👩‍💻ユーザー：** 「はい！」
+
+**🐘ガネーシャ：** 「Mock を使ったテストは『**通知のテスト**』やない。なんでかわかるか？」
+
+**👩‍💻ユーザー：** 「えっと...Mock って偽物ですよね。偽物を使ってるから...？」
+
+**🐘ガネーシャ：** 「**その通りや！** Mock は偽物やから、**本物の通知処理は一切動いてない**んや」
+
 ```
+┌─────────────────────────────────────────────────────────────┐
+│              Mock は「偽物」である                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【本物の NotificationService】                             │
+│  → notify() を呼ぶとログ出力（本番ならメール送信）         │
+│  → 実際に通知が送られる                                    │
+│                                                             │
+│  【Mock（偽物）】                                           │
+│  → notify() を呼んでも何もしない（偽物だから）             │
+│  → 「呼ばれたかどうか」を記録するだけ                      │
+│  → 通知が届くかどうかは分からない                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「あ！Mock では『通知が実際に届くか』は検証できないんですね！」
+
+**🐘ガネーシャ：** 「せや。Mock で検証できるのは『**UseCase が通知サービスを呼び出したか**』だけや。通知サービス自体が正しく動くかは、Mock では検証できへん」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Mock で検証できること・できないこと            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ✅ Mock で検証できる                                       │
+│  ・UseCase が notify() を呼んだか                          │
+│  ・正しい引数で呼んだか                                    │
+│  ・何回呼んだか                                            │
+│  → 「依頼したこと」は検証できる                           │
+│                                                             │
+│  ❌ Mock で検証できない                                     │
+│  ・メールが実際に送信されるか                              │
+│  ・通知の内容が正しいか                                    │
+│  ・宛先に届くか                                            │
+│  → 「届くこと」は検証できない（偽物だから）               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「つまり、これは『通知のテスト』じゃなくて『UseCase のテスト』なんですね！」
+
+**🐘ガネーシャ：** 「**完璧や！** Mock は『外部依存を切り離す』ためのもので、UseCase が『正しく依頼するか』を検証してるんや。通知が届くかどうかをテストしたかったら `Mail::fake()` みたいな別の方法を使うことになるで」
+
+**👩‍💻ユーザー：** 「なるほど！Mock の役割がよく分かりました！」
+
+**🐘ガネーシャ：** 「ほな、既存のテストに Mock を組み込んでいこか」
 
 ---
 
-### 📝 テストコードを書く
+### 📝 既存のテストに Mock を追加
 
-**ファイル**: `tests/Feature/Api/TaskCompleteWithNotificationTest.php`
+**ファイル**: `tests/Feature/Api/TaskApiTest.php`
+
+まず、use 文に `Mockery` と `NotificationService` を追加：
 
 ```php
-<?php
-
-namespace Tests\Feature\Api;
-
-use App\Models\Membership;
-use App\Models\Project;
-use App\Models\Task;
-use App\Models\User;
 use App\Services\NotificationService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
-use Tests\TestCase;
+```
 
-class TaskCompleteWithNotificationTest extends TestCase
+次に、タスク完了の正常系テストに Mock を組み込む：
+
+```php
+/**
+ * doing ステータスのタスクを完了できる
+ *
+ * 正常系：doing → done への状態遷移
+ * Mock を使って通知サービスを差し替え、外部依存を切り離してテスト
+ */
+public function test_doingステータスのタスクを完了できる(): void
 {
-    use RefreshDatabase;
+    // ============================================
+    // 1. Arrange（準備）
+    // ============================================
+    $task = Task::factory()->create([
+        'project_id' => $this->project->id,
+        'created_by' => $this->user->id,
+        'status' => 'doing',
+    ]);
 
-    private User $user;
-    private Project $project;
+    // NotificationService を Mock に差し替え
+    // → 本物の通知処理（ログ出力やメール送信）を実行しない
+    $mockNotification = Mockery::mock(NotificationService::class);
+    $mockNotification
+        ->shouldReceive('notify')
+        ->once()
+        ->with(
+            'task_completed',
+            Mockery::on(fn($user) => $user->id === $this->user->id),
+            Mockery::on(fn($payload) => $payload['id'] === $task->id)
+        );
+    $this->app->instance(NotificationService::class, $mockNotification);
 
-    protected function setUp(): void
-    {
-        parent::setUp();
+    // ============================================
+    // 2. Act（実行）
+    // ============================================
+    $response = $this->actingAs($this->user)
+        ->postJson("/api/tasks/{$task->id}/complete");
 
-        $this->user = User::factory()->create();
-        $this->project = Project::factory()->create();
+    // ============================================
+    // 3. Assert（検証）
+    // ============================================
+    $response->assertStatus(200);
+    $response->assertJson([
+        'data' => [
+            'status' => 'done',
+        ]
+    ]);
 
-        Membership::factory()->create([
-            'user_id' => $this->user->id,
-            'project_id' => $this->project->id,
-            'role' => 'project_member',
-        ]);
-    }
+    // DB にも反映されていることを確認
+    $this->assertDatabaseHas('tasks', [
+        'id' => $task->id,
+        'status' => 'done',
+    ]);
 
-    /**
-     * タスク完了時に通知が送信されることを確認
-     */
-    public function test_タスク完了時に通知が送信される(): void
-    {
-        // ============================================
-        // 1. テストデータ準備
-        // ============================================
-        $task = Task::factory()->create([
-            'project_id' => $this->project->id,
-            'created_by' => $this->user->id,
-            'status' => 'doing',
-        ]);
-
-        // ============================================
-        // 2. Mock を作成
-        //    「NotificationService の偽物を作る」
-        // ============================================
-        $mockNotification = Mockery::mock(NotificationService::class);
-        
-        // ============================================
-        // 3. 期待する動作を定義
-        //    「notify() が1回、この引数で呼ばれるはず」
-        // ============================================
-        $mockNotification
-            ->shouldReceive('notify')
-            ->once()
-            ->with(
-                'task_completed',                                           // 第1引数: type
-                Mockery::on(fn($actor) => $actor->id === $this->user->id),  // 第2引数: actor
-                Mockery::on(fn($payload) => $payload['task_id'] === $task->id)  // 第3引数: payload
-            );
-
-        // ============================================
-        // 4. ✅ Mock を DI コンテナに登録（差し替え）
-        //    「NotificationService が必要な時は Mock を使え」
-        // ============================================
-        $this->app->instance(NotificationService::class, $mockNotification);
-
-        // ============================================
-        // 5. API を実行
-        //    Laravel が UseCase を作る時、Mock が注入される
-        // ============================================
-        $response = $this->actingAs($this->user)
-            ->postJson("/api/tasks/{$task->id}/complete");
-
-        // ============================================
-        // 6. レスポンスを検証
-        // ============================================
-        $response->assertStatus(200);
-        $response->assertJson([
-            'data' => [
-                'status' => 'done',
-            ]
-        ]);
-
-        // ============================================
-        // 7. Mock の検証（自動）
-        //    テスト終了時に Mockery が自動で確認する
-        //    - notify() は1回呼ばれたか？
-        //    - 引数は正しかったか？
-        // ============================================
-    }
+    // Mockery が自動で「notify() が正しく呼ばれたか」を検証
 }
 ```
 
 ---
 
-### 🤔 テストの流れを整理
+### 🤔 テストの構造を整理
 
-**🐘ガネーシャ：** 「テストの流れを整理するで」
+**🐘ガネーシャ：** 「このテストが何をしてるか整理するで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              Mock テストの流れ                               │
+│              テストの構造                                    │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1️⃣  テストデータ準備（Task を作成）                        │
+│  【テスト対象】                                             │
+│  CompleteTaskUseCase（タスク完了の UseCase）               │
 │                                                             │
-│  2️⃣  Mock を作成（偽物を作る）                              │
-│      $mock = Mockery::mock(NotificationService::class);     │
+│  【検証内容】                                               │
+│  1. レスポンスが 200 OK                                    │
+│  2. ステータスが done に変わる                             │
+│  3. 通知サービスが正しく呼ばれる（←Mock で検証）          │
 │                                                             │
-│  3️⃣  期待する動作を定義（こう呼ばれるはず）                 │
-│      $mock->shouldReceive('notify')->once()->with(...);     │
-│                                                             │
-│  4️⃣  DI コンテナに登録（差し替え）                          │
-│      $this->app->instance(..., $mock);                      │
-│                                                             │
-│  5️⃣  API を実行（Mock が使われる）                          │
-│      $this->postJson('/api/tasks/{id}/complete');           │
-│                                                             │
-│  6️⃣  レスポンスを検証                                       │
-│      $response->assertStatus(200);                          │
-│                                                             │
-│  7️⃣  Mock の検証（自動）                                    │
-│      Mockery が「期待通り呼ばれたか」を自動で確認          │
+│  【Mock の役割】                                            │
+│  ・外部依存（通知）を切り離す                              │
+│  ・UseCase が通知を「依頼した」ことを検証                 │
+│  ・本物の通知処理は実行しない                              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**👩‍💻ユーザー：** 「Mock は『通知のテスト』じゃなくて、『UseCase が通知を正しく依頼するか』のテストなんですね！」
+
+**🐘ガネーシャ：** 「完璧や！」
 
 ---
 
@@ -1877,15 +1940,18 @@ class TaskCompleteWithNotificationTest extends TestCase
 **🐘ガネーシャ：** 「ほな、テストを実行してみよか」
 
 ```bash
-sail artisan test --filter=TaskCompleteWithNotificationTest
+sail artisan test --filter=TaskApiTest
 ```
 
 ```
-   PASS  Tests\Feature\Api\TaskCompleteWithNotificationTest
-  ✓ タスク完了時に通知が送信される                           0.25s
+   PASS  Tests\Feature\Api\TaskApiTest
+  ✓ タスクを作成できる                                       2.35s
+  ✓ todoステータスのタスクを開始できる                       0.09s
+  ✓ doingステータスのタスクを完了できる                      0.08s  ← 新規追加
+  ...
 
-  Tests:    1 passed (2 assertions)
-  Duration: 0.35s
+  Tests:    8 passed (21 assertions)
+  Duration: 3.98s
 ```
 
 **👩‍💻ユーザー：** 「通った！🎉」
@@ -1894,15 +1960,13 @@ sail artisan test --filter=TaskCompleteWithNotificationTest
 
 **👩‍💻ユーザー：** 「確かに！Mock に差し替えたから、本物の `Log::info()` は呼ばれてないんですね！」
 
-**🐘ガネーシャ：** 「せや。テストでは『notify() が正しい引数で呼ばれたか』だけを確認しとるんや。実際にログ出力されたかどうかは関係ないんや」
-
 ---
 
-## 📖 第8章：異常系のテストも書こう
+## 📖 第8章：異常系テストにも Mock を組み込もう
 
-### 🎭 通知が呼ばれないケースをテスト
+### 🎭 通知が呼ばれないケースを検証
 
-**🐘ガネーシャ：** 「正常系だけやのうて、『通知が呼ばれないケース』もテストしとこか」
+**🐘ガネーシャ：** 「正常系だけやのうて、異常系のテストにも Mock を組み込むで」
 
 **👩‍💻ユーザー：** 「todo のタスクを完了しようとしたら、409 エラーになりますよね。その時は通知も送られないはず...」
 
@@ -1910,42 +1974,53 @@ sail artisan test --filter=TaskCompleteWithNotificationTest
 
 ---
 
-### 📝 異常系テストを追加
+### 📝 異常系テストに Mock を追加
 
 ```php
 /**
- * todo 状態のタスクは完了できず、通知も送信されない
+ * todo ステータスのタスクは完了できない（409）
+ *
+ * 異常系：doing を経由せずに完了しようとした場合
+ * Mock を使って通知が呼ばれないことも検証
  */
-public function test_todo状態のタスクは完了できず通知も送信されない(): void
+public function test_todoステータスのタスクは完了できない(): void
 {
     // ============================================
-    // 1. テストデータ準備
+    // 1. Arrange（準備）
     // ============================================
     $task = Task::factory()->create([
         'project_id' => $this->project->id,
         'created_by' => $this->user->id,
-        'status' => 'todo',  // ← doing ではない！
+        'status' => 'todo',  // ← まだ着手してない
     ]);
 
-    // ============================================
-    // 2. Mock を作成（通知が呼ばれないことを期待）
-    // ============================================
+    // NotificationService を Mock に差し替え
+    // → 異常系なので notify() は呼ばれないはず
     $mockNotification = Mockery::mock(NotificationService::class);
-    $mockNotification->shouldNotReceive('notify');  // ← 呼ばれないはず
-
+    $mockNotification->shouldNotReceive('notify');
     $this->app->instance(NotificationService::class, $mockNotification);
 
     // ============================================
-    // 3. API を実行
+    // 2. Act（実行）
     // ============================================
     $response = $this->actingAs($this->user)
         ->postJson("/api/tasks/{$task->id}/complete");
 
     // ============================================
-    // 4. レスポンスを検証
+    // 3. Assert（検証）
     // ============================================
     $response->assertStatus(409);
-    // Mockery が自動で「notify が呼ばれなかったか」を検証
+    $response->assertJson([
+        'message' => '作業中のタスクのみ完了できます',
+    ]);
+
+    // ステータスが変わっていないことも確認
+    $this->assertDatabaseHas('tasks', [
+        'id' => $task->id,
+        'status' => 'todo',  // ← todo のまま
+    ]);
+
+    // Mockery が自動で「notify() が呼ばれなかったか」を検証
 }
 ```
 
@@ -1977,69 +2052,23 @@ public function test_todo状態のタスクは完了できず通知も送信さ�
 
 ---
 
-### 📝 引数を詳細に検証するテストも追加
-
-**🐘ガネーシャ：** 「ついでに、引数を詳細に検証するテストも追加しとこか」
-
-```php
-/**
- * 通知に正しいペイロードが渡される
- */
-public function test_通知に正しいペイロードが渡される(): void
-{
-    // Arrange
-    $task = Task::factory()->create([
-        'project_id' => $this->project->id,
-        'created_by' => $this->user->id,
-        'status' => 'doing',
-        'title' => 'テストタスク',
-    ]);
-
-    // Mock を作成（引数を詳細に検証）
-    $mockNotification = Mockery::mock(NotificationService::class);
-    
-    $mockNotification
-        ->shouldReceive('notify')
-        ->once()
-        ->withArgs(function ($type, $actor, $payload) use ($task) {
-            return $type === 'task_completed'
-                && $actor->id === $this->user->id
-                && $payload['task_id'] === $task->id
-                && $payload['task_title'] === 'テストタスク'
-                && $payload['project_id'] === $this->project->id;
-        });
-
-    $this->app->instance(NotificationService::class, $mockNotification);
-
-    // Act
-    $response = $this->actingAs($this->user)
-        ->postJson("/api/tasks/{$task->id}/complete");
-
-    // Assert
-    $response->assertStatus(200);
-}
-```
-
-**👩‍💻ユーザー：** 「`withArgs()` を使うと、すべての引数をまとめて検証できるんですね！」
-
-**🐘ガネーシャ：** 「せや。複雑な検証をする時はこっちの方が見やすいで」
-
----
-
 ### 🎭 テストを実行
 
 ```bash
-sail artisan test --filter=TaskCompleteWithNotificationTest
+sail artisan test --filter=TaskApiTest
 ```
 
 ```
-   PASS  Tests\Feature\Api\TaskCompleteWithNotificationTest
-  ✓ タスク完了時に通知が送信される                           0.23s
-  ✓ todo状態のタスクは完了できず通知も送信されない           0.18s
-  ✓ 通知に正しいペイロードが渡される                         0.20s
+   PASS  Tests\Feature\Api\TaskApiTest
+  ✓ タスクを作成できる                                       2.35s
+  ✓ todoステータスのタスクを開始できる                       0.09s
+  ✓ doingステータスのタスクは開始できない                    0.41s
+  ✓ doingステータスのタスクを完了できる                      0.08s
+  ✓ todoステータスのタスクは完了できない                     0.32s
+  ...
 
-  Tests:    3 passed (4 assertions)
-  Duration: 0.68s
+  Tests:    8 passed (21 assertions)
+  Duration: 3.98s
 ```
 
 **👩‍💻ユーザー：** 「全部通った！🎉」
@@ -2052,7 +2081,7 @@ sail artisan test --filter=TaskCompleteWithNotificationTest
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    📝 Lesson 8-1 まとめ                      │
+│                    📝 Lesson 7-7 まとめ                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  1️⃣  DI（依存性注入）とは                                   │
@@ -2068,13 +2097,18 @@ sail artisan test --filter=TaskCompleteWithNotificationTest
 │      → new すると差し替え不可能                            │
 │      → DI で受け取ると差し替え可能（Mock に置換できる）   │
 │                                                             │
-│  4️⃣  Mock の基本                                            │
+│  4️⃣  Mock の位置付け                                        │
+│      → 「通知のテスト」ではない！                          │
+│      → 「UseCase のテスト」で外部依存を切り離すためのもの │
+│      → 既存のテストに組み込んで使う                        │
+│                                                             │
+│  5️⃣  Mock の基本文法                                        │
 │      → Mockery::mock() で偽物を作成                        │
 │      → shouldReceive() で「呼ばれるはず」を定義            │
 │      → shouldNotReceive() で「呼ばれないはず」を定義       │
-│      → with() / Mockery::on() / withArgs() で引数を検証   │
+│      → with() / Mockery::on() で引数を検証                 │
 │                                                             │
-│  5️⃣  DI コンテナへの登録                                    │
+│  6️⃣  DI コンテナへの登録                                    │
 │      → $this->app->instance() で Mock を登録               │
 │      → これで本物が偽物に差し替わる                        │
 │                                                             │
