@@ -4,6 +4,7 @@ namespace App\UseCases\Task;
 
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Notification\LogNotificationService;
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
 
@@ -14,6 +15,7 @@ class StartTaskUseCase
 {
     public function __construct(
         private ProjectRules $projectRules,
+        private LogNotificationService $notificationService,
     ) {}
 
     /**
@@ -41,7 +43,12 @@ class StartTaskUseCase
         $task->save();
 
         // ========================================
-        // 3. リレーションロード
+        // 3. 通知送信
+        // ========================================
+        $this->notificationService->notify('task_started', $user, $task->toArray());
+
+        // ========================================
+        // 4. リレーションロード
         // ========================================
         $task->load('createdBy');
 
