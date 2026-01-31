@@ -302,9 +302,7 @@ private MailNotificationService $notificationService;  // ← 変更
 
 **🐘ガネーシャ：** 「せやろ？しかも、開発環境ではログのままにしたい場合はどうするんや？」
 
-**🐘ガネーシャ：** 「ほな、開発環境ではログのままにしたい場合は？」
-
-**👩‍💻ユーザー：** 「うーん...`LogNotificationService` の中に `if` 文を書いて、環境によって分岐させる...？」
+**👩‍💻ユーザー：** 「うーん...じゃあ `LogNotificationService` の中に `if` 文を書いて、環境によって分岐させる...？」
 
 ```php
 <?php
@@ -434,30 +432,35 @@ class LogNotificationService
 
 ---
 
-### 😱 さらに UseCase が複数ある問題
+### 💡 解決策は？
 
-**🐘ガネーシャ：** 「さらに言うとな、UseCase が3つあるやろ？もし `LogNotificationService` を `MailNotificationService` に変えたくなったら、**3つの UseCase 全部書き換える**必要があるんや」
+**👩‍💻ユーザー：** 「結局、どうすればいいんですか...？😭」
 
-```php
-<?php
-// 😱 3つの UseCase を全部書き換える必要がある！
+**🐘ガネーシャ：** 「ここまでの問題を整理すると、全部**具体的なクラスに依存している**ことが原因なんや」
 
-// CreateTaskUseCase.php
-private LogNotificationService $notificationService;  // ← 変更
-private MailNotificationService $notificationService;
-
-// StartTaskUseCase.php
-private LogNotificationService $notificationService;  // ← 変更
-private MailNotificationService $notificationService;
-
-// CompleteTaskUseCase.php
-private LogNotificationService $notificationService;  // ← 変更
-private MailNotificationService $notificationService;
+```
+┌─────────────────────────────────────────────────────────────┐
+│              問題のまとめ                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  クラス名と実装が合わなくなる                           │
+│      → LogNotificationService なのにメール送信...         │
+│                                                             │
+│  2️⃣  UseCase を全部書き換える必要がある                     │
+│      → 3つの UseCase で合計6箇所の変更...                 │
+│                                                             │
+│  3️⃣  if 文がどんどん増えて複雑になる                        │
+│      → 本番/ステージング/開発/お客さんごと...             │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  💡 原因：UseCase が「LogNotificationService」という        │
+│           具体的なクラスに直接依存しているから              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「うわ...3箇所も書き換えないといけないんですか...！しかも use 文も全部変えないと...」
-
-**🐘ガネーシャ：** 「せや。これが**具体的なクラスに依存している**ことの問題や。もっとスマートな方法があるんやで」
+**🐘ガネーシャ：** 「もっとスマートな方法があるんやで」
 
 **👩‍💻ユーザー：** 「教えてください！🙏」
 
