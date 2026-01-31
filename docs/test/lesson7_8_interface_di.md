@@ -230,6 +230,22 @@ public function test_タスクを作成できる(): void
 
 **👩‍💻ユーザー：** 「え...えっと...`LogNotificationService` の中身を書き換えて、`Log::info()` を `Mail::send()` に変えれば...」
 
+```php
+<?php
+// 👩‍💻ユーザーが考えた方法（単純に書き換え）
+
+class LogNotificationService
+{
+    public function notify(string $type, User $actor, array $payload): void
+    {
+        // Log::info() を Mail::send() に変える
+        Mail::raw("通知: {$type}", function ($message) use ($actor) {
+            $message->to($actor->email);
+        });
+    }
+}
+```
+
 **🐘ガネーシャ：** 「ほな、開発環境ではログのままにしたい場合は？」
 
 **👩‍💻ユーザー：** 「うーん...`LogNotificationService` の中に `if` 文を書いて、環境によって分岐させる...？」
