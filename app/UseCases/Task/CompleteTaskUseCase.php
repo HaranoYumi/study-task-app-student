@@ -4,7 +4,7 @@ namespace App\UseCases\Task;
 
 use App\Models\Task;
 use App\Models\User;
-use App\Services\NotificationService;
+use App\Services\Notification\LogNotificationService;
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
 
@@ -20,7 +20,7 @@ class CompleteTaskUseCase
 {
     public function __construct(
         private ProjectRules $projectRules,
-        private NotificationService $notificationService,
+        private LogNotificationService $notificationService,
     ) {}
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Notification;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
  * 実際にはログ出力のみ（メール/Slack送信の模擬）
  * テスト時は Mock に差し替えて使用する
  */
-class NotificationService
+class LogNotificationService
 {
     /**
      * 通知を送信する
