@@ -1344,7 +1344,7 @@ class LogNotificationService implements NotificationServiceInterface  // ← 追
 }
 ```
 
-**🐘ガネーシャ：** 「前回作った `NotificationService` を `Notification` フォルダに移動して、`implements NotificationServiceInterface` を追加するんや」
+**🐘ガネーシャ：** 「前回作った `NotificationService` に`implements NotificationServiceInterface` を追加するんや」
 
 ---
 
@@ -1391,9 +1391,10 @@ class MailNotificationService implements NotificationServiceInterface
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 use App\Services\Notification\NotificationServiceInterface;
 use App\Services\Notification\LogNotificationService;
-use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -1414,9 +1415,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Vite::prefetch(concurrency: 3);
     }
 }
+
 ```
 
 ---
@@ -1434,6 +1436,7 @@ namespace App\UseCases\Task;
 
 use App\Models\Task;
 use App\Models\User;
+// use App\Services\Notification\LogNotificationService;  ← 削除
 use App\Services\Notification\NotificationServiceInterface;  // ← 変更
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
@@ -1478,6 +1481,7 @@ class CompleteTaskUseCase
 use 文を変更：
 
 ```php
+// use App\Services\Notification\LogNotificationService; ← 削除
 use App\Services\Notification\NotificationServiceInterface;  // ← 変更
 use Mockery;
 ```
@@ -1640,7 +1644,7 @@ public function register(): void
 **🐘ガネーシャ：** 「Postman でタスク完了 API を実行してみ」
 
 ```
-POST /api/tasks/{task_id}/complete
+POST /api/tasks/3/complete
 Authorization: Bearer {token}
 ```
 
@@ -1710,7 +1714,7 @@ class AppServiceProvider extends ServiceProvider
 **🐘ガネーシャ：** 「もう一回 API を実行してみ」
 
 ```
-POST /api/tasks/{task_id}/complete
+POST /api/tasks/3/complete
 Authorization: Bearer {token}
 ```
 
@@ -1748,7 +1752,7 @@ POST /api/projects/{project_id}/tasks
 → Mailtrap に「task_created」のメールが届く
 
 # タスク開始  
-POST /api/tasks/{task_id}/start
+POST /api/tasks/4/start
 → Mailtrap に「task_started」のメールが届く
 ```
 
