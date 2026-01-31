@@ -234,17 +234,73 @@ public function test_タスクを作成できる(): void
 <?php
 // 👩‍💻ユーザーが考えた方法（単純に書き換え）
 
-class LogNotificationService
+class LogNotificationService  // ← 🤔 あれ？クラス名は「Log」なのに...
 {
     public function notify(string $type, User $actor, array $payload): void
     {
         // Log::info() を Mail::send() に変える
-        Mail::raw("通知: {$type}", function ($message) use ($actor) {
+        Mail::raw("通知: {$type}", function ($message) use ($actor) {  // ← メール送信してる！
             $message->to($actor->email);
         });
     }
 }
 ```
+
+**🐘ガネーシャ：** 「ちょっと待ち。そのコード、なんかおかしくないか？」
+
+**👩‍💻ユーザー：** 「え？」
+
+**🐘ガネーシャ：** 「クラス名は `LogNotificationService` やのに、中身はメール送信しとるやん。**クラス名と実装内容が合ってない**んや」
+
+**👩‍💻ユーザー：** 「あ...確かに。`LogNotificationService` なのにログ出力してない...」
+
+**🐘ガネーシャ：** 「これは**嘘のクラス名**になっとる。他の開発者が見たら『ログ出力するんやな』と思うのに、実際はメール送信する。これはバグの温床やで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              😱 クラス名と実装が合わない問題                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【クラス名】LogNotificationService                         │
+│  【期待する動作】ログ出力                                   │
+│  【実際の動作】メール送信                                   │
+│                                                             │
+│  ❌ クラス名が嘘になってる！                               │
+│  ❌ 他の開発者が混乱する                                   │
+│  ❌ コードを読んだだけでは何をするか分からない             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「じゃあクラス名を `MailNotificationService` に変えれば...」
+
+**🐘ガネーシャ：** 「ほな、そうすると**UseCase のコードも全部書き換えなアカン**やん」
+
+```php
+<?php
+// 😱 UseCase も全部書き換えが必要！
+
+// CreateTaskUseCase.php
+use App\Services\Notification\LogNotificationService;  // ❌ 削除
+use App\Services\Notification\MailNotificationService; // ← 追加
+private MailNotificationService $notificationService;  // ← 変更
+
+// StartTaskUseCase.php
+use App\Services\Notification\LogNotificationService;  // ❌ 削除
+use App\Services\Notification\MailNotificationService; // ← 追加
+private MailNotificationService $notificationService;  // ← 変更
+
+// CompleteTaskUseCase.php
+use App\Services\Notification\LogNotificationService;  // ❌ 削除
+use App\Services\Notification\MailNotificationService; // ← 追加
+private MailNotificationService $notificationService;  // ← 変更
+
+// 😱 3つの UseCase で合計 6箇所も変更が必要！
+```
+
+**👩‍💻ユーザー：** 「うわ...UseCase が増えれば増えるほど、変更箇所が増えていく...」
+
+**🐘ガネーシャ：** 「せやろ？しかも、開発環境ではログのままにしたい場合はどうするんや？」
 
 **🐘ガネーシャ：** 「ほな、開発環境ではログのままにしたい場合は？」
 
