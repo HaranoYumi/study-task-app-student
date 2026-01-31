@@ -292,10 +292,11 @@ class TaskController extends Controller
 **🐘ガネーシャ：** 「**UseCase のメソッドを呼び出すのは私たちのコード**やからや」
 
 ```php
+// CompleteTaskUseCase
 <?php
 
 // ============================================
-// UseCase: メソッド引数で受け取る（❌ 問題あり）
+// UseCase: メソッドの引数でNotificationServiceを受け取る（❌ 問題あり）
 // ============================================
 class CompleteTaskUseCase
 {
@@ -311,12 +312,13 @@ class CompleteTaskUseCase
 ```
 
 ```php
+// TaskController.php
 <?php
 
 // Controller から呼び出す時...
 public function complete(
     Task $task, 
-    NotificationService $notificationService  // ← Controller が知る必要ある？
+    NotificationService $notificationService  // ← Controller が知る必要ある
 ): JsonResponse {
     $task = $this->completeTaskUseCase->execute($task, $user, $notificationService);
     //                                                        ↑ 毎回渡す必要がある
@@ -337,6 +339,7 @@ public function complete(
 **🐘ガネーシャ：** 「UseCase に新しいサービスが必要になった時を考えてみ」
 
 ```php
+// CompleteTaskUseCase
 <?php
 
 // ============================================
@@ -410,6 +413,7 @@ $useCase->execute($task, $user, $mockNotification, $mockLog);
 **🐘ガネーシャ：** 「コンストラクタで受け取る場合を見てみ」
 
 ```php
+// CompleteTaskUseCase
 <?php
 
 // ============================================
@@ -1305,13 +1309,16 @@ use App\Services\NotificationService;        // ← 追加
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
 
+/**
+ * タスク完了UseCase（doing → done）
+ *
+ * 役割：
+ * - 「完了」という業務シナリオ（検証 → 状態変更 → 必要なロード）を組み立てる
+ * - 複数ドメインにまたがる共通ルールは Rules に委譲する
+ * - このUseCase固有の条件は UseCase 内に閉じる（必要に応じて private に隔離）
+ */
 class CompleteTaskUseCase
 {
-    /**
-     * ✅ DI（依存性注入）でサービスを受け取る
-     * 
-     * new しないことで、テスト時に Mock に差し替え可能になる
-     */
     public function __construct(
         private ProjectRules $projectRules,
         private NotificationService $notificationService,  // ← 追加
@@ -1328,30 +1335,32 @@ class CompleteTaskUseCase
     public function execute(Task $task, User $user): Task
     {
         // ========================================
-        // 1. 権限チェック
+        // 1. 検証（ビジネスルール / 制約）
         // ========================================
+
+        // 横断ルール：このプロジェクトを操作できるメンバーか？
+        // （Project×Membership など、複数UseCaseで再利用される前提ルール）
         $this->projectRules->ensureMember($task->project, $user);
 
-        // ========================================
-        // 2. ビジネスルールチェック（UseCase固有の制約）
-        // ========================================
+        // UseCase固有ルール：このタスクは「完了」に遷移できる状態か？
+        //（現時点では条件が少なくても、状態遷移は条件が増えやすいので隔離しておく）
         $this->ensureCanComplete($task);
 
         // ========================================
-        // 3. ステータス更新
+        // 2. 状態変更（UseCaseの責務）
         // ========================================
         $task->status = 'done';
         $task->save();
 
         // ========================================
-        // 4. 通知送信 ← 追加！
+        // 3. 通知送信 ← 追加！
         // ========================================
         // ✅ DI で受け取った $this->notificationService を使う
         // テスト時は Mock が渡されるので、本物は動かない
         $this->notificationService->notify('task_completed', $user, $task->toArray());
 
         // ========================================
-        // 5. リレーションロード
+        // 4. 表示に必要なデータをロード（I/O都合）
         // ========================================
         $task->load('createdBy');
 
@@ -1360,6 +1369,16 @@ class CompleteTaskUseCase
 
     /**
      * タスクが「完了」に遷移可能か検証する（UseCase固有の制約）
+     *
+     * 置き場所の意図：
+     * - これは「タスク完了」というシナリオに閉じた条件（現時点では他UseCaseで使わない想定）
+     * - execute() の流れ（検証→更新）を読みやすく保つため、検証ロジックを private に隔離する
+     * - private だからテスト不要、ではなく「UseCaseテストで完了条件をまとめて検証する」方針
+     *   （将来この条件が複数UseCaseに広がったら Rules へ昇格を検討する）
+     *
+     * @param Task $task タスク
+     * @return void
+     * @throws ConflictException
      */
     private function ensureCanComplete(Task $task): void
     {
@@ -2132,7 +2151,6 @@ sail artisan test --filter=TaskApiTest
 │                   （本番なら Mail::send()）                 │
 │                                                             │
 │  ─────────────────────────────────────────────────          │
-│                                                             │
 │  【テストの動き】                                           │
 │                                                             │
 │  $this->app->instance(..., $mock);  ← 差し替え指示         │

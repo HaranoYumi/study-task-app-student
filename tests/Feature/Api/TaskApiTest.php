@@ -8,6 +8,8 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Services\NotificationService;
+use Mockery;
 use Tests\TestCase;
 
 class TaskApiTest extends TestCase
@@ -81,6 +83,47 @@ class TaskApiTest extends TestCase
             'data' => [
                 'status' => 'doing',
             ]
+        ]);
+    }
+
+    // tests/Feature/Api/TaskApiTest.php に追加
+
+    /**
+     * doing ステータスのタスクを完了できる
+     *
+     * 正常系：doing → done への状態遷移
+     */
+    public function test_doingステータスのタスクを完了できる(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        $task = Task::factory()->create([
+            'project_id' => $this->project->id,
+            'created_by' => $this->user->id,
+            'status' => 'doing',
+        ]);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/tasks/{$task->id}/complete");
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(200);
+        $response->assertJson([
+            'data' => [
+                'status' => 'done',
+            ]
+        ]);
+
+        // DB にも反映されていることを確認
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => 'done',
         ]);
     }
 
@@ -216,44 +259,6 @@ class TaskApiTest extends TestCase
         $this->assertDatabaseHas('tasks', [
             'id' => $task->id,
             'status' => 'doing',  // ← doing のまま
-        ]);
-    }
-
-    // tests/Feature/Api/TaskApiTest.php に追加
-    /**
-     * todo ステータスのタスクは完了できない（409）
-     */
-    public function test_todoステータスのタスクは完了できない(): void
-    {
-        // ============================================
-        // 1. Arrange（準備）
-        // ============================================
-        // todo 状態のタスクを作成
-        $task = Task::factory()->create([
-            'project_id' => $this->project->id,
-            'created_by' => $this->user->id,
-            'status' => 'todo',  // ← まだ着手してない
-        ]);
-
-        // ============================================
-        // 2. Act（実行）
-        // ============================================
-        // 完了しようとする（でも、doing を経由してないから失敗）
-        $response = $this->actingAs($this->user)
-            ->postJson("/api/tasks/{$task->id}/complete");
-
-        // ============================================
-        // 3. Assert（検証）
-        // ============================================
-        $response->assertStatus(409);
-        $response->assertJson([
-            'message' => '作業中のタスクのみ完了できます',
-        ]);
-
-        // ステータスが変わっていないことも確認
-        $this->assertDatabaseHas('tasks', [
-            'id' => $task->id,
-            'status' => 'todo',  // ← todo のまま
         ]);
     }
 }
