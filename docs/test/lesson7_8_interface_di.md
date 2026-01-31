@@ -1727,11 +1727,7 @@ class AppServiceProvider extends ServiceProvider
 
 **👩‍💻ユーザー：** 「本当に1行変えるだけ...！」
 
-**🐘ガネーシャ：** 「せや。**UseCase は1つも触ってない**やろ？コード変えたらキャッシュクリアも忘れんとな」
-
-```bash
-sail artisan config:clear && sail artisan config:cache
-```
+**🐘ガネーシャ：** 「せや。**UseCase は1つも触ってない**やろ？」
 
 ---
 
@@ -1826,12 +1822,6 @@ public function register(): void
         LogNotificationService::class  // ← 戻す
     );
 }
-```
-
-**🐘ガネーシャ：** 「変更したらキャッシュクリアも忘れずにな」
-
-```bash
-sail artisan config:clear && sail artisan config:cache
 ```
 
 **👩‍💻ユーザー：** 「これでまたログ出力に戻りましたね！」
