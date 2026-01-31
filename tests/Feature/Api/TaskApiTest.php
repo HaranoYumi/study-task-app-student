@@ -7,7 +7,9 @@ use App\Models\Membership;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 class TaskApiTest extends TestCase
@@ -219,26 +221,87 @@ class TaskApiTest extends TestCase
         ]);
     }
 
-    // tests/Feature/Api/TaskApiTest.php に追加
+    /**
+     * doing ステータスのタスクを完了できる
+     *
+     * 正常系：doing → done への状態遷移
+     * Mock を使って通知サービスを差し替え、外部依存を切り離してテスト
+     */
+    public function test_doingステータスのタスクを完了できる(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        $task = Task::factory()->create([
+            'project_id' => $this->project->id,
+            'created_by' => $this->user->id,
+            'status' => 'doing',
+        ]);
+
+        // NotificationService を Mock に差し替え
+        // → 本物の通知処理（ログ出力やメール送信）を実行しない
+        $mockNotification = Mockery::mock(NotificationService::class);
+        $mockNotification
+            ->shouldReceive('notify')
+            ->once()
+            ->with(
+                'task_completed',
+                Mockery::on(fn($user) => $user->id === $this->user->id),
+                Mockery::on(fn($payload) => $payload['id'] === $task->id)
+            );
+        $this->app->instance(NotificationService::class, $mockNotification);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/tasks/{$task->id}/complete");
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(200);
+        $response->assertJson([
+            'data' => [
+                'status' => 'done',
+            ]
+        ]);
+
+        // DB にも反映されていることを確認
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => 'done',
+        ]);
+
+        // Mockery が自動で「notify() が正しく呼ばれたか」を検証
+    }
+
     /**
      * todo ステータスのタスクは完了できない（409）
+     *
+     * 異常系：doing を経由せずに完了しようとした場合
+     * Mock を使って通知が呼ばれないことも検証
      */
     public function test_todoステータスのタスクは完了できない(): void
     {
         // ============================================
         // 1. Arrange（準備）
         // ============================================
-        // todo 状態のタスクを作成
         $task = Task::factory()->create([
             'project_id' => $this->project->id,
             'created_by' => $this->user->id,
             'status' => 'todo',  // ← まだ着手してない
         ]);
 
+        // NotificationService を Mock に差し替え
+        // → 異常系なので notify() は呼ばれないはず
+        $mockNotification = Mockery::mock(NotificationService::class);
+        $mockNotification->shouldNotReceive('notify');
+        $this->app->instance(NotificationService::class, $mockNotification);
+
         // ============================================
         // 2. Act（実行）
         // ============================================
-        // 完了しようとする（でも、doing を経由してないから失敗）
         $response = $this->actingAs($this->user)
             ->postJson("/api/tasks/{$task->id}/complete");
 
@@ -255,5 +318,7 @@ class TaskApiTest extends TestCase
             'id' => $task->id,
             'status' => 'todo',  // ← todo のまま
         ]);
+
+        // Mockery が自動で「notify() が呼ばれなかったか」を検証
     }
 }

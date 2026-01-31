@@ -4,6 +4,7 @@ namespace App\UseCases\Task;
 
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationService;
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
 
@@ -19,6 +20,7 @@ class CompleteTaskUseCase
 {
     public function __construct(
         private ProjectRules $projectRules,
+        private NotificationService $notificationService,
     ) {}
 
     /**
@@ -49,7 +51,12 @@ class CompleteTaskUseCase
         $task->save();
 
         // ========================================
-        // 3. 表示に必要なデータをロード（I/O都合）
+        // 3. 通知送信
+        // ========================================
+        $this->notificationService->notify('task_completed', $user, $task->toArray());
+
+        // ========================================
+        // 4. 表示に必要なデータをロード（I/O都合）
         // ========================================
         $task->load('createdBy');
 
