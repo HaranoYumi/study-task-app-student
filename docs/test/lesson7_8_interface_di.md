@@ -1278,6 +1278,12 @@ public function test_doingステータスのタスクを完了できる(): void
 
 ### 📝 Step 1: Interface を作成
 
+**🐘ガネーシャ：** 「まずは Interface ファイルを作るで。ターミナルで touch コマンドを実行してな」
+
+```bash
+touch app/Services/Notification/NotificationServiceInterface.php
+```
+
 **ファイル**: `app/Services/Notification/NotificationServiceInterface.php`
 
 ```php
@@ -1349,6 +1355,12 @@ class LogNotificationService implements NotificationServiceInterface  // ← 追
 ---
 
 ### 📝 Step 4: メール版の実装クラスを作成
+
+**🐘ガネーシャ：** 「次はメール版のクラスを作るで」
+
+```bash
+touch app/Services/Notification/MailNotificationService.php
+```
 
 **ファイル**: `app/Services/Notification/MailNotificationService.php`
 
@@ -1604,6 +1616,16 @@ MAIL_FROM_ADDRESS="noreply@example.com"
 MAIL_FROM_NAME="${APP_NAME}"
 ```
 
+**🐘ガネーシャ：** 「`.env` を変更したら、設定のキャッシュをクリアして再生成するんやで」
+
+```bash
+sail artisan config:clear && sail artisan config:cache
+```
+
+**👩‍💻ユーザー：** 「これ必要なんですか？」
+
+**🐘ガネーシャ：** 「Laravel は設定をキャッシュしとることがあるんや。`.env` を変えても反映されへん時があるから、毎回クリアしておくのが確実やで」
+
 **🐘ガネーシャ：** 「`MAIL_USERNAME` と `MAIL_PASSWORD` は Mailtrap の管理画面からコピーしてな」
 
 **👩‍💻ユーザー：** 「この設定は、`MailNotificationService` の中で使われるんですか？」
@@ -1705,7 +1727,11 @@ class AppServiceProvider extends ServiceProvider
 
 **👩‍💻ユーザー：** 「本当に1行変えるだけ...！」
 
-**🐘ガネーシャ：** 「せや。**UseCase は1つも触ってない**やろ？」
+**🐘ガネーシャ：** 「せや。**UseCase は1つも触ってない**やろ？コード変えたらキャッシュクリアも忘れんとな」
+
+```bash
+sail artisan config:clear && sail artisan config:cache
+```
 
 ---
 
@@ -1800,6 +1826,12 @@ public function register(): void
         LogNotificationService::class  // ← 戻す
     );
 }
+```
+
+**🐘ガネーシャ：** 「変更したらキャッシュクリアも忘れずにな」
+
+```bash
+sail artisan config:clear && sail artisan config:cache
 ```
 
 **👩‍💻ユーザー：** 「これでまたログ出力に戻りましたね！」
