@@ -20,6 +20,31 @@ git pull origin lesson7-7
 
 **推奨：** 各 Lesson ごとに専用のブランチで作業することで、作業を整理しやすくなります。
 
+### データベースの準備
+
+データベースを初期状態に戻してください：
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+### フロントエンドの再起動
+
+Viteの開発サーバーを再起動してください：
+
+```bash
+# Ctrl+Cで現在のプロセスを停止してから
+sail npm run dev
+```
+
+### ログ設定の確認
+
+`.env`ファイルで、ログチャンネルが`daily`になっていることを確認してください：
+
+```
+LOG_CHANNEL=daily
+```
+
 ---
 
 ## 🎭 プロローグ：テストできないコードがある？
@@ -1167,7 +1192,7 @@ $controller->complete($task);
 **🐘ガネーシャ：** 「Services フォルダがなければ作ってな」
 
 ```bash
-mkdir -p app/Services
+touch app/Services/NotificationService.php
 ```
 
 ---
@@ -1437,7 +1462,7 @@ class CompleteTaskUseCase
 ### 📝 API を実行
 
 ```
-POST /api/tasks/{task_id}/complete
+POST /api/tasks/3/complete
 Authorization: Bearer {token}
 ```
 
@@ -1447,10 +1472,16 @@ Authorization: Bearer {token}
 
 ### 📝 ログを確認
 
-```bash
-# storage/logs/laravel.log を確認
-tail -f storage/logs/laravel.log
+**🐘ガネーシャ：** 「ログファイルを開いて確認してみ」
+
 ```
+📁 storage/logs/laravel-YYYY-MM-DD.log
+```
+
+**💡 ヒント：** ログファイルは日付ごとに分かれてるで。今日の日付のファイルを開いてな。  
+例：`storage/logs/laravel-2026-01-31.log`
+
+ファイルを開くと、こんな感じのログが出力されてるはずや：
 
 ```
 [2024-01-15 10:30:45] local.INFO: [Notification] {
