@@ -128,6 +128,7 @@ class LogNotificationService
         Log::info('[Notification]', [
             'type' => $type,
             'actor_id' => $actor->id,
+            'actor_name' => $actor->name,
             'payload' => $payload,
         ]);
     }

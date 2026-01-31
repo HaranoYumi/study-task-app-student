@@ -7,7 +7,7 @@ use App\Models\Membership;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Services\NotificationService;
+use App\Services\Notification\LogNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -240,7 +240,7 @@ class TaskApiTest extends TestCase
 
         // NotificationService を Mock に差し替え
         // → 本物の通知処理（ログ出力やメール送信）を実行しない
-        $mockNotification = Mockery::mock(NotificationService::class);
+        $mockNotification = Mockery::mock(LogNotificationService::class);
         $mockNotification
             ->shouldReceive('notify')
             ->once()
@@ -249,7 +249,7 @@ class TaskApiTest extends TestCase
                 Mockery::on(fn($user) => $user->id === $this->user->id),
                 Mockery::on(fn($payload) => $payload['id'] === $task->id)
             );
-        $this->app->instance(NotificationService::class, $mockNotification);
+        $this->app->instance(LogNotificationService::class, $mockNotification);
 
         // ============================================
         // 2. Act（実行）
@@ -295,9 +295,9 @@ class TaskApiTest extends TestCase
 
         // NotificationService を Mock に差し替え
         // → 異常系なので notify() は呼ばれないはず
-        $mockNotification = Mockery::mock(NotificationService::class);
+        $mockNotification = Mockery::mock(LogNotificationService::class);
         $mockNotification->shouldNotReceive('notify');
-        $this->app->instance(NotificationService::class, $mockNotification);
+        $this->app->instance(LogNotificationService::class, $mockNotification);
 
         // ============================================
         // 2. Act（実行）
