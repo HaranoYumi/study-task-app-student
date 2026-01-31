@@ -1,0 +1,2170 @@
+# Lesson 7-7: DI（依存性注入）を理解しよう 🐘
+## 〜テスト可能なコードの書き方〜
+
+---
+
+## 🌿 ブランチ切り替えと準備
+
+課題に取り組む前に、リモートの全てのブランチを取得してから、Lesson 用のブランチに切り替えてください：
+
+```bash
+# リモートの全てのブランチ情報を取得
+git fetch origin
+
+# Lesson用のブランチに切り替え
+git checkout lesson7-7
+
+# リモートの最新状態に更新
+git pull origin lesson7-7
+```
+
+**推奨：** 各 Lesson ごとに専用のブランチで作業することで、作業を整理しやすくなります。
+
+---
+
+## 🎭 プロローグ：テストできないコードがある？
+
+**👩‍💻ユーザー：** 「ガネーシャさん、Lesson 7 でテストの書き方を学びました！」
+
+**🐘ガネーシャ：** 「おお、よう頑張ったな。テストはバッチリか？」
+
+**👩‍💻ユーザー：** 「はい！でも、新しい機能を作ろうとしたら、ちょっと困ったことが...」
+
+**🐘ガネーシャ：** 「ほう、何や？」
+
+**👩‍💻ユーザー：** 「タスク完了時に**通知を送る機能**を作りたいんですけど、テストってどうすればいいんですか？」
+
+**🐘ガネーシャ：** 「ほう、通知機能か。ええな！でも、何が困っとるんや？」
+
+**👩‍💻ユーザー：** 「えっと、メールを送る機能をテストしたいんですけど...テストを実行するたびに本物のメールが送られちゃいますよね？」
+
+**🐘ガネーシャ：** 「**おっ、ええ疑問や！** そこに気づいたのは偉いで。実際、テストのたびに100通メール送信とか、迷惑極まりないわな」
+
+---
+
+### 🤔 今回の課題
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  今回の課題                                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【やりたいこと】                                           │
+│  タスク完了時に、プロジェクトメンバーに通知を送りたい       │
+│                                                             │
+│  【テストの問題】                                           │
+│  😱 テストを実行するたびに本物のメールが送られる           │
+│  😱 テストが遅くなる（メール送信に時間がかかる）           │
+│  😱 外部サービス（メールサーバー）が落ちてるとテスト失敗   │
+│                                                             │
+│  【理想】                                                   │
+│  ✅ テスト時は「通知が呼ばれたか」だけ確認したい           │
+│  ✅ 本物のメール送信はしたくない                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「そうなんです...本番では本物を使いたいけど、テストの時だけ何とかしたいんです」
+
+**🐘ガネーシャ：** 「せやな。実はな、そういう時のために**本物を偽物に差し替える**テクニックがあるんや」
+
+**👩‍💻ユーザー：** 「偽物に差し替える...？」
+
+**🐘ガネーシャ：** 「せや。**DI（依存性注入）**っちゅう仕組みを使うと、テスト時だけ本物を偽物に差し替えられるんや。今日はその仕組みを教えたるで！」
+
+---
+
+### 🎯 今日の目標
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  🎯 今日のゴール                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  DI（依存性注入）とは何か理解する                       │
+│                                                             │
+│  2️⃣  NotificationService を作成する                         │
+│      → タスク完了時に通知を送る機能                        │
+│                                                             │
+│  3️⃣  テストで「偽物（Mock）」に差し替える方法を学ぶ         │
+│      → 本物のメール送信なしでテストできる！                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📖 第1章：DI（依存性注入）って何？
+
+### 🎭 まずは DI の基本ルールを覚えよう
+
+**🐘ガネーシャ：** 「まず、DI が何か説明するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              DI（Dependency Injection）とは？                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  「コンストラクタやメソッドの引数に型を書くと、              │
+│    Laravel が自動でその型のインスタンスを作って渡してくれる」│
+│                                                             │
+│  自分で new しなくても、Laravel が用意してくれる！          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「ちょっと待ってください。**コンストラクタ**って何ですか？」
+
+**🐘ガネーシャ：** 「おっ、そこから説明が必要やったか。ええ質問や！」
+
+---
+
+### 🤔 コンストラクタ（__construct）とは？
+
+**🐘ガネーシャ：** 「コンストラクタっちゅうのは、**クラスのインスタンスが作られる時に最初に実行されるメソッド**のことや」
+
+```php
+<?php
+
+class NotificationService
+{
+    // ✅ これがコンストラクタ
+    // クラスが new される時に自動で呼ばれる
+    public function __construct()
+    {
+        // 初期化処理をここに書く
+    }
+    
+    public function notify(...): void
+    {
+        // ...
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「`__construct` っていう名前のメソッドなんですね」
+
+**🐘ガネーシャ：** 「せや。PHP では `__construct` っていう特別な名前のメソッドがコンストラクタになるんや」
+
+---
+
+#### 📝 コンストラクタの役割
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              コンストラクタ（__construct）の役割             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【いつ実行される？】                                       │
+│  new SomeClass() した瞬間に自動で実行される                │
+│                                                             │
+│  【何に使う？】                                             │
+│  ・初期化処理                                               │
+│  ・必要なオブジェクトを受け取る（← DI で重要！）           │
+│                                                             │
+│  【例】                                                     │
+│  $service = new NotificationService();                      │
+│  // ↑ この瞬間に __construct() が実行される                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### 📝 コンストラクタで引数を受け取る
+
+**🐘ガネーシャ：** 「コンストラクタには引数を渡せるんや。これが DI の鍵になるで」
+
+```php
+<?php
+
+class CompleteTaskUseCase
+{
+    // コンストラクタで NotificationService を受け取る
+    public function __construct(
+        private NotificationService $notificationService
+    ) {}
+    
+    public function execute(Task $task, User $user): Task
+    {
+        // 受け取った $this->notificationService を使う
+        $this->notificationService->notify(...);
+        return $task;
+    }
+}
+```
+
+```php
+// 普通に使う場合（自分で new する場合）
+$service = new NotificationService();
+$useCase = new CompleteTaskUseCase($service);  // ← コンストラクタに渡す
+$useCase->execute($task, $user);
+```
+
+**👩‍💻ユーザー：** 「`new CompleteTaskUseCase($service)` で、コンストラクタに渡してるんですね！」
+
+**🐘ガネーシャ：** 「せや！」
+
+**👩‍💻ユーザー：** 「でも、わざわざコンストラクタに書く必要あるんですか？メソッドの引数に書いても DI できるんじゃ...」
+
+**🐘ガネーシャ：** 「**ええ質問や！** 実は、どっちでも DI はできるんやけど、**場合によって違う**んや。順番に説明するで」
+
+---
+
+#### 🤔 まず Controller の場合を考えてみよう
+
+**🐘ガネーシャ：** 「まず、Controller で UseCase を受け取る場合を見てみ」
+
+```php
+<?php
+
+// ============================================
+// パターン1: コンストラクタで受け取る
+// ============================================
+class TaskController extends Controller
+{
+    public function __construct(
+        private CompleteTaskUseCase $completeTaskUseCase
+    ) {}
+
+    public function complete(Task $task): JsonResponse
+    {
+        $task = $this->completeTaskUseCase->execute($task, Auth::user());
+        return response()->json(['data' => $task]);
+    }
+}
+
+// ============================================
+// パターン2: メソッド引数で受け取る
+// ============================================
+class TaskController extends Controller
+{
+    public function complete(Task $task, CompleteTaskUseCase $useCase): JsonResponse
+    {
+        $task = $useCase->execute($task, Auth::user());
+        return response()->json(['data' => $task]);
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「どっちでも動きそうですね」
+
+**🐘ガネーシャ：** 「せや。実は Controller の場合は**どっちでも特に困らん**んや」
+
+**👩‍💻ユーザー：** 「え！？どっちでもいいんですか？」
+
+**🐘ガネーシャ：** 「なんでかっちゅうと、**Controller のメソッドを呼び出すのは Laravel**やからや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Controller の場合                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Controller のメソッドを呼び出すのは誰？                    │
+│  → Laravel（フレームワーク）                               │
+│                                                             │
+│  API リクエスト                                             │
+│       ↓                                                     │
+│  Laravel が routes/api.php を見る                          │
+│       ↓                                                     │
+│  Laravel が Controller のメソッドを呼ぶ                    │
+│       ↓                                                     │
+│  引数に UseCase があれば、Laravel が自動で渡してくれる     │
+│                                                             │
+│  → 私たちが Controller のメソッドを直接呼ぶことはない      │
+│  → だからメソッド引数に書いても困らない                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！Controller は Laravel が呼んでくれるから、引数が増えても私たちは困らないんですね」
+
+**🐘ガネーシャ：** 「せや。ただ、コンストラクタに書く方が**依存関係が一目で分かる**し、**複数メソッドで同じ UseCase を使う時に便利**やから、コンストラクタに書くことが多いな」
+
+---
+
+#### 😱 でも UseCase 内のサービスは話が違う
+
+**🐘ガネーシャ：** 「ところがな、**UseCase の中でサービスを受け取る場合は明確に困る**んや」
+
+**👩‍💻ユーザー：** 「何が違うんですか？」
+
+**🐘ガネーシャ：** 「**UseCase のメソッドを呼び出すのは私たちのコード**やからや」
+
+```php
+<?php
+
+// ============================================
+// UseCase: メソッド引数で受け取る（❌ 問題あり）
+// ============================================
+class CompleteTaskUseCase
+{
+    public function execute(
+        Task $task, 
+        User $user, 
+        NotificationService $notificationService  // ← ここで受け取る
+    ): Task {
+        $notificationService->notify(...);
+        return $task;
+    }
+}
+```
+
+```php
+<?php
+
+// Controller から呼び出す時...
+public function complete(
+    Task $task, 
+    NotificationService $notificationService  // ← Controller が知る必要ある？
+): JsonResponse {
+    $task = $this->completeTaskUseCase->execute($task, $user, $notificationService);
+    //                                                        ↑ 毎回渡す必要がある
+    return response()->json(['data' => $task]);
+}
+```
+
+**👩‍💻ユーザー：** 「あ！Controller が NotificationService のことを知らないといけなくなる！」
+
+**🐘ガネーシャ：** 「**そこや！** でもな、問題はそれだけやないんや。**もっと困ること**があるで」
+
+**👩‍💻ユーザー：** 「もっと困ること？」
+
+---
+
+#### 😱 メソッド引数にすると起きる問題
+
+**🐘ガネーシャ：** 「UseCase に新しいサービスが必要になった時を考えてみ」
+
+```php
+<?php
+
+// ============================================
+// 【変更前】NotificationService だけ使ってた
+// ============================================
+class CompleteTaskUseCase
+{
+    public function execute(
+        Task $task, 
+        User $user, 
+        NotificationService $notificationService
+    ): Task {
+        // ...
+    }
+}
+
+// ============================================
+// 【変更後】LogService も必要になった！
+// ============================================
+class CompleteTaskUseCase
+{
+    public function execute(
+        Task $task, 
+        User $user, 
+        NotificationService $notificationService,
+        LogService $logService  // ← 追加！
+    ): Task {
+        // ...
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「引数が増えましたね」
+
+**🐘ガネーシャ：** 「問題はここからや。**呼び出してる側を全部修正せなアカン**んや」
+
+```php
+<?php
+
+// ============================================
+// 呼び出し箇所が1つだけならまだマシやけど...
+// ============================================
+
+// TaskController.php
+$this->completeTaskUseCase->execute($task, $user, $notificationService, $logService);
+//                                                                      ↑ 追加
+
+// BatchController.php（バッチ処理でも使ってた）
+$this->completeTaskUseCase->execute($task, $user, $notificationService, $logService);
+//                                                                      ↑ 追加
+
+// TaskApiController.php（別のAPIでも使ってた）
+$this->completeTaskUseCase->execute($task, $user, $notificationService, $logService);
+//                                                                      ↑ 追加
+
+// TestCode.php（テストコードも全部！）
+$useCase->execute($task, $user, $mockNotification, $mockLog);
+//                                                 ↑ 追加
+
+// 😱 呼び出してる箇所、全部修正が必要！！
+```
+
+**👩‍💻ユーザー：** 「うわ...UseCase を使ってる場所、全部直さないといけないんですか！？」
+
+**🐘ガネーシャ：** 「せや。これが**保守性の問題**や。UseCase の内部実装を変えただけやのに、呼び出し側を全部修正せなアカン」
+
+---
+
+#### ✅ コンストラクタなら影響なし
+
+**🐘ガネーシャ：** 「コンストラクタで受け取る場合を見てみ」
+
+```php
+<?php
+
+// ============================================
+// 【変更前】
+// ============================================
+class CompleteTaskUseCase
+{
+    public function __construct(
+        private NotificationService $notificationService
+    ) {}
+    
+    public function execute(Task $task, User $user): Task
+    {
+        // ...
+    }
+}
+
+// ============================================
+// 【変更後】LogService も必要になった！
+// ============================================
+class CompleteTaskUseCase
+{
+    public function __construct(
+        private NotificationService $notificationService,
+        private LogService $logService  // ← 追加！
+    ) {}
+    
+    public function execute(Task $task, User $user): Task  // ← 変わらない！
+    {
+        // ...
+    }
+}
+```
+
+```php
+<?php
+
+// ============================================
+// 呼び出し側は...何も変更しなくていい！
+// ============================================
+
+// TaskController.php
+$this->completeTaskUseCase->execute($task, $user);  // ← そのまま！
+
+// BatchController.php
+$this->completeTaskUseCase->execute($task, $user);  // ← そのまま！
+
+// TaskApiController.php
+$this->completeTaskUseCase->execute($task, $user);  // ← そのまま！
+
+// ✅ Laravel が自動で LogService を注入してくれる
+// ✅ 呼び出し側は UseCase の内部変更を知らなくていい
+```
+
+**👩‍💻ユーザー：** 「すごい！呼び出し側は何も変更しなくていいんですね！」
+
+**🐘ガネーシャ：** 「せや！コンストラクタで受け取ると、**UseCase の内部変更が呼び出し側に影響しない**んや。これが保守性っちゅうもんや」
+
+---
+
+#### 📊 まとめ
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              コンストラクタ vs メソッド引数                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【Controller で UseCase を受け取る場合】                   │
+│  → コンストラクタでもメソッド引数でも、どちらでも困らない  │
+│  → Laravel が呼び出すから、引数が増えても影響なし          │
+│  → ただし、コンストラクタの方が依存関係が分かりやすい      │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  【UseCase でサービスを受け取る場合】                       │
+│  → コンストラクタで受け取るべき（✅ 推奨）                 │
+│  → メソッド引数だと、呼び出し側（私たちのコード）が困る    │
+│  → 引数が増えると、呼び出し箇所を全部修正（❌ 保守性低い）│
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  【結論】                                                   │
+│  コンストラクタ: サービスなど「常に同じもの」を受け取る    │
+│  メソッド引数: Task や User など「毎回変わるもの」を受け取る│
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！NotificationService は常に同じだからコンストラクタ、Task や User は毎回変わるからメソッド引数なんですね！」
+
+**🐘ガネーシャ：** 「完璧や！Laravel を使うと、**コンストラクタの new を自分で書かなくていい**んや。Laravel が自動でやってくれる」
+
+**👩‍💻ユーザー：** 「それが DI なんですね！」
+
+**🐘ガネーシャ：** 「その通りや！実はな、お前は普段から DI を使っとるんやで」
+
+**👩‍💻ユーザー：** 「え！？私が！？」
+
+---
+
+### 🤔 身近な例：Request と Task
+
+**🐘ガネーシャ：** 「普段使っている `Request` や `Task` も DI の仕組みで渡されとるんやで」
+
+```php
+<?php
+
+class TaskController extends Controller
+{
+    // ✅ Request は Laravel が自動で渡してくれる（DI）
+    public function store(Request $request): JsonResponse
+    {
+        $title = $request->input('title');
+        // ...
+    }
+
+    // ✅ Task も Laravel が自動で渡してくれる（DI + Route Model Binding）
+    // URL: /api/tasks/5 → id=5 の Task を自動取得
+    public function show(Task $task): JsonResponse
+    {
+        return response()->json(['data' => $task]);
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「あ！確かに `new Request()` なんて書いたことないです！」
+
+**🐘ガネーシャ：** 「せやろ？引数に型を書くだけで、Laravel が自動で渡してくれるんや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              なぜ new しなくていいのか？                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  // ❌ こう書かなくていい                                   │
+│  public function store(): JsonResponse                      │
+│  {                                                          │
+│      $request = new Request();  // 自分で作る必要なし！     │
+│  }                                                          │
+│                                                             │
+│  // ✅ 引数に型を書くだけで Laravel が渡してくれる          │
+│  public function store(Request $request): JsonResponse      │
+│  {                                                          │
+│      // $request は Laravel が用意してくれたもの            │
+│  }                                                          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「便利ですね！でも、なんで Laravel がやってくれるんですか？」
+
+**🐘ガネーシャ：** 「それを理解するには、**DI コンテナ**っちゅう仕組みを知る必要があるで」
+
+---
+
+### 📊 DI コンテナ（サービスコンテナ）とは？
+
+**🐘ガネーシャ：** 「Laravel には**DI コンテナ**っちゅうものがあるんや。別名『サービスコンテナ』とも呼ばれるで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              DI コンテナ（サービスコンテナ）                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  「この型が必要な時は、これを渡せ」という対応表             │
+│                                                             │
+│  ┌─────────────────────────────────────────────────┐        │
+│  │  型                    │  渡すもの              │        │
+│  ├─────────────────────────────────────────────────┤        │
+│  │  Request               │  現在のリクエスト情報  │        │
+│  │  User（引数）          │  認証済みユーザー      │        │
+│  │  Task（ルート引数）    │  URLのIDから取得       │        │
+│  │  NotificationService   │  ???（設定次第）       │        │
+│  └─────────────────────────────────────────────────┘        │
+│                                                             │
+│  Laravel はこの「対応表」を見て、何を渡すか決める           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「対応表があるんですね！」
+
+**🐘ガネーシャ：** 「せや。この対応表を**DI コンテナ**って呼ぶんや。Laravel が『何を渡すか』を決める時に、このコンテナを見るんやで」
+
+---
+
+### 📝 Laravel が「何を渡すか」決める3つのパターン
+
+**🐘ガネーシャ：** 「Laravel が何を渡すか決めるパターンは3つあるで」
+
+---
+
+#### 1️⃣ デフォルト（何も登録しない場合）
+
+```php
+// NotificationService は特に登録されていない
+public function __construct(
+    private NotificationService $service
+) {}
+
+// Laravel の動き:
+// 「NotificationService が必要やな」
+// 「特に登録されてないから、new NotificationService() するわ」
+```
+
+**🐘ガネーシャ：** 「何も設定してないと、Laravel は勝手に `new` して渡してくれるんや」
+
+---
+
+#### 2️⃣ AppServiceProvider に bind() で登録した場合
+
+```php
+// app/Providers/AppServiceProvider.php
+public function register(): void
+{
+    $this->app->bind(
+        NotificationServiceInterface::class,  // この型が必要な時は
+        NotificationService::class            // こっちを作れ
+    );
+}
+```
+
+```php
+public function __construct(
+    private NotificationServiceInterface $service
+) {}
+
+// Laravel の動き:
+// 「NotificationServiceInterface が必要やな」
+// 「AppServiceProvider に登録されてる！」
+// 「NotificationService を作れって書いてあるな」
+// 「ほな new NotificationService() するわ」
+```
+
+**🐘ガネーシャ：** 「Interface を使う場合は、『この Interface には、この実装を使え』って設定するんや。これは次回のレッスンで詳しくやるで」
+
+---
+
+#### 3️⃣ テストで instance() した場合
+
+```php
+// テストコード
+$mock = Mockery::mock(NotificationService::class);
+$this->app->instance(NotificationService::class, $mock);
+```
+
+```php
+public function __construct(
+    private NotificationService $service
+) {}
+
+// Laravel の動き:
+// 「NotificationService が必要やな」
+// 「instance() で登録されてる！」
+// 「すでに作られたオブジェクト（$mock）があるな」
+// 「ほなそれをそのまま渡すわ」
+```
+
+**👩‍💻ユーザー：** 「`instance()` を使うと、Laravel が渡すものを変えられるんですね！」
+
+**🐘ガネーシャ：** 「**そこや！** テストで Mock に差し替える時はこれを使うんや！」
+
+---
+
+### 📊 優先順位
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Laravel が「何を渡すか」決める優先順位          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣ instance() で登録されてる？ → それを使う（最優先）     │
+│         ↓ なければ                                          │
+│  2️⃣ bind() で登録されてる？ → 指定されたクラスを new      │
+│         ↓ なければ                                          │
+│  3️⃣ 何も登録されてない → その型をそのまま new             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**🐘ガネーシャ：** 「`instance()` が最優先やから、テストで Mock を登録すると、本物より優先されるんや」
+
+---
+
+### 📊 具体例で整理
+
+| 型 | 登録状況 | Laravel が渡すもの |
+|----|----------|-------------------|
+| `Request` | Laravel がデフォルト登録済み | 現在のリクエスト情報 |
+| `Task`（ルート引数） | Laravel がデフォルト登録済み | URL の ID から自動取得 |
+| `NotificationService` | 何も登録なし | `new NotificationService()` |
+| `NotificationService` | `instance($mock)` で登録 | `$mock` そのもの |
+
+**👩‍💻ユーザー：** 「なるほど！テストで `instance()` を使えば、Mock が渡されるようになるんですね！」
+
+---
+
+## 📖 第2章：なぜ DI を使うと Mock が可能になるのか？
+
+### 🎭 ❌ DI を使わない場合（差し替え不可能）
+
+**🐘ガネーシャ：** 「ここが一番大事なポイントや。**なぜ DI を使わないとテストできないのか**を説明するで」
+
+**👩‍💻ユーザー：** 「はい！」
+
+**🐘ガネーシャ：** 「まず、DI を使わないダメな例を見てみ」
+
+```php
+<?php
+
+class CompleteTaskUseCase
+{
+    public function execute(Task $task, User $user): Task
+    {
+        // ❌ クラス内で直接 new している
+        $notificationService = new NotificationService();
+        
+        $task->status = 'done';
+        $task->save();
+        
+        // この NotificationService は「本物」しかありえない
+        $notificationService->notify('task_completed', $user, [...]);
+        
+        return $task;
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「普通に `new` してますね」
+
+**🐘ガネーシャ：** 「せや。これをテストしようとするとどうなるか見てみ」
+
+```php
+<?php
+// テストコード
+
+public function test_タスク完了(): void
+{
+    $mock = Mockery::mock(NotificationService::class);
+    $mock->shouldReceive('notify')->once();
+    
+    // 😢 DI コンテナに登録しても...
+    $this->app->instance(NotificationService::class, $mock);
+    
+    // 😢 UseCase の中で new NotificationService() してるから
+    // DI コンテナは使われない！
+    
+    $response = $this->actingAs($this->user)
+        ->postJson("/api/tasks/{$task->id}/complete");
+    
+    // ❌ 本物の NotificationService が動いてしまう
+    // ❌ Mock は完全に無視される
+}
+```
+
+**👩‍💻ユーザー：** 「あっ！UseCase の中で `new` してるから、DI コンテナに登録しても意味がないんですね！」
+
+**🐘ガネーシャ：** 「**その通りや！** `new` は『自分で作る』っちゅう意味やから、Laravel に聞かずに勝手に作っちゃうんや。だから Mock が無視されるんや」
+
+---
+
+### 🎭 ✅ DI を使う場合（差し替え可能）
+
+**🐘ガネーシャ：** 「ほな、DI を使った正しい書き方を見てみ」
+
+```php
+<?php
+
+class CompleteTaskUseCase
+{
+    // ✅ コンストラクタで外から受け取る（DI）
+    public function __construct(
+        private NotificationService $notificationService
+    ) {}
+    
+    public function execute(Task $task, User $user): Task
+    {
+        $task->status = 'done';
+        $task->save();
+        
+        // ✅ 外から渡された $this->notificationService を使う
+        // → 本物でも Mock でも、渡されたものが動く
+        $this->notificationService->notify('task_completed', $user, [...]);
+        
+        return $task;
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「コンストラクタで受け取ってる！`new` してないですね」
+
+**🐘ガネーシャ：** 「せや！これならテストで Mock に差し替えられるで」
+
+```php
+<?php
+// テストコード
+
+public function test_タスク完了(): void
+{
+    $mock = Mockery::mock(NotificationService::class);
+    $mock->shouldReceive('notify')->once();
+    
+    // ✅ DI コンテナに登録
+    $this->app->instance(NotificationService::class, $mock);
+    
+    // ✅ API を呼ぶと、Laravel が UseCase を作る時に
+    //    DI コンテナを見て Mock を注入してくれる
+    
+    $response = $this->actingAs($this->user)
+        ->postJson("/api/tasks/{$task->id}/complete");
+    
+    // ✅ Mock が使われる！本物は動かない！
+    $response->assertStatus(200);
+}
+```
+
+**👩‍💻ユーザー：** 「今度は Mock が使われるんですね！」
+
+---
+
+### 📊 図解：差し替えの流れ
+
+**🐘ガネーシャ：** 「図で整理するとこうなるで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  【パターン1: new する（❌ 差し替え不可）】                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  テスト: $this->app->instance(..., $mock)                   │
+│                     ↓                                       │
+│              DI コンテナに登録                               │
+│              ┌──────────────┐                               │
+│              │ Mock が待機中 │                               │
+│              └──────────────┘                               │
+│                     ↓                                       │
+│  UseCase: $service = new NotificationService();             │
+│                     ↓                                       │
+│           「自分で作るわ」→ DI コンテナ無視                │
+│                     ↓                                       │
+│              本物が生成される 😢                            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  【パターン2: DI で受け取る（✅ 差し替え可能）】            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  テスト: $this->app->instance(..., $mock)                   │
+│                     ↓                                       │
+│              DI コンテナに登録                               │
+│              ┌──────────────┐                               │
+│              │ Mock が待機中 │                               │
+│              └──────────────┘                               │
+│                     ↓                                       │
+│  UseCase: __construct(NotificationService $service)         │
+│                     ↓                                       │
+│           「Laravel さん、これ頂戴」                        │
+│                     ↓                                       │
+│           DI コンテナ「Mock あるで！」                      │
+│                     ↓                                       │
+│              Mock が注入される 🎉                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📊 まとめ表
+
+| 書き方 | DI コンテナ | Mock 差し替え |
+|--------|-------------|---------------|
+| `new NotificationService()` | ❌ 使われない | ❌ 不可能 |
+| `__construct(NotificationService $s)` | ✅ 使われる | ✅ 可能 |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              DI の本質                                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  「自分で作らない（new しない）。外からもらう」             │
+│                                                             │
+│  これがテスト可能なコードの基本原則！                       │
+│                                                             │
+│  ・new する → 自分で決める → 差し替え不可能               │
+│  ・DI で受け取る → 外が決める → 差し替え可能              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**🐘ガネーシャ：** 「ワシの教え子のエジソンくんも言うとったで。『テストできないコードは、設計が悪いんや』ってな」
+
+**👩‍💻ユーザー：** 「エジソンくん、そんなこと言ってましたっけ...」
+
+**🐘ガネーシャ：** 「...まぁええやん！大事なのは『new しない、外からもらう』っちゅうことや！」
+
+---
+
+### 🤔 Request や User も同じ仕組み
+
+**🐘ガネーシャ：** 「ちなみにな、普段使ってる Controller も同じ仕組みやで」
+
+```php
+<?php
+
+class TaskController extends Controller
+{
+    // ✅ UseCase も DI で受け取る
+    public function __construct(
+        private CompleteTaskUseCase $completeTaskUseCase
+    ) {}
+
+    // ✅ Request も DI で受け取る
+    // ✅ Task も DI（Route Model Binding）で受け取る
+    public function complete(Request $request, Task $task): JsonResponse
+    {
+        $user = $request->user();
+        
+        $task = $this->completeTaskUseCase->execute($task, $user);
+        
+        return response()->json(['data' => new TaskResource($task)]);
+    }
+}
+```
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Controller の引数はすべて DI で解決される       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  public function complete(Request $request, Task $task)     │
+│                              ↑              ↑               │
+│                              │              │               │
+│                    Laravel が用意    URL の ID から取得      │
+│                                                             │
+│  __construct(CompleteTaskUseCase $useCase)                  │
+│                                   ↑                         │
+│                                   │                         │
+│                         DI コンテナから取得                  │
+│                         （Mock に差し替え可能！）           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「あれ？UseCase もコンストラクタで受け取ってますね。ということは...」
+
+**🐘ガネーシャ：** 「**気づいたか！** UseCase も DI で渡されとるんや。つまり、**UseCase 自体も Mock に差し替えられる**っちゅうことや」
+
+**👩‍💻ユーザー：** 「えっ！UseCase も Mock にできるんですか！？」
+
+**🐘ガネーシャ：** 「せや。コンストラクタで受け取ってるものは、なんでも差し替え可能や」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              DI で受け取っているもの = 差し替え可能          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Controller                                                 │
+│  ├── __construct(CompleteTaskUseCase)  ← 差し替え可能      │
+│  │                                                          │
+│  └── CompleteTaskUseCase                                    │
+│      └── __construct(NotificationService)  ← 差し替え可能  │
+│                                                             │
+│  どの階層でも、DI で受け取ってれば Mock に差し替えできる！  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！今回は NotificationService を Mock にするけど、やろうと思えば UseCase 自体も Mock にできるんですね」
+
+**🐘ガネーシャ：** 「その通りや！**仕組みとしては**可能や」
+
+**👩‍💻ユーザー：** 「じゃあ UseCase を Mock にすることもあるんですか？」
+
+**🐘ガネーシャ：** 「基本的には**しない**な。なんでかっちゅうと、**UseCase 自体をテストしたい**からや」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              何を Mock にするか？                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【UseCase を Mock にする？】→ ❌ 基本的にしない            │
+│  ・UseCase のロジック自体をテストしたい                     │
+│  ・Mock にしたら、UseCase のテストにならない               │
+│                                                             │
+│  【外部サービスを Mock にする？】→ ✅ する                  │
+│  ・NotificationService（メール送信）                       │
+│  ・PaymentService（決済処理）                              │
+│  ・ExternalApiService（外部 API 呼び出し）                 │
+│  → テスト時に本物を動かしたくないもの                     │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  【今回のテスト】                                           │
+│  ・UseCase のロジックをテストしたい（本物を使う）          │
+│  ・でもメール送信はしたくない（Mock に差し替え）           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「なるほど！UseCase は『テストしたい対象』だから Mock にしない。NotificationService は『テスト時に動かしたくない外部処理』だから Mock にするんですね！」
+
+**🐘ガネーシャ：** 「完璧や！」
+
+**👩‍💻ユーザー：** 「全部 DI で渡されてたんですね！今まで意識してませんでした」
+
+**🐘ガネーシャ：** 「せやろ？Laravel は賢いから、お前が意識せんでも裏でやってくれとったんや」
+
+**👩‍💻ユーザー：** 「でも、ちょっと待ってください。Controller や UseCase って、私たち `new` してないですよね？誰が作ってるんですか？」
+
+**🐘ガネーシャ：** 「**ええ質問や！** 実は、それも全部 Laravel が自動でやってくれとるんや」
+
+---
+
+### 🤔 Laravel が自動で new してくれる仕組み
+
+**🐘ガネーシャ：** 「API リクエストが来た時、Laravel が裏で何をしてるか説明するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Laravel が自動で new してくれる                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  API リクエストが来ると...                                  │
+│                                                             │
+│  1. Controller が必要 → Laravel が作る                     │
+│  2. Controller のコンストラクタに UseCase がある            │
+│  3. Laravel「UseCase が必要やな。DI コンテナに聞くで」     │
+│  4. DI コンテナ「登録されてないから new するわ」           │
+│  5. UseCase のコンストラクタに NotificationService がある   │
+│  6. Laravel「NotificationService も必要やな」              │
+│  7. DI コンテナ「これも登録されてないから new するわ」     │
+│                                                             │
+│  → 全部 Laravel が自動でやってくれる！                     │
+│  → 私たちは「コンストラクタに型を書く」だけでええ          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「つまり、UseCase も NotificationService も、全部 DI で自動的に作られてるんですね！」
+
+**🐘ガネーシャ：** 「せや！私たちが `new` を書かなくても、Laravel が裏で全部やってくれとるんや」
+
+---
+
+#### 📝 Laravel が裏でやってること（イメージ）
+
+**🐘ガネーシャ：** 「もうちょい詳しく説明するで。Laravel が裏で何をしてるかイメージで見せたる」
+
+```php
+<?php
+// これは Laravel が内部で自動的にやってること（擬似コード）
+
+// API リクエストが来た！
+// ↓
+// routes/api.php を見る
+// Route::post('/tasks/{task}/complete', [TaskController::class, 'complete']);
+// ↓
+// TaskController を作らなアカン
+// ↓
+// TaskController のコンストラクタを見る
+// public function __construct(CompleteTaskUseCase $completeTaskUseCase)
+// ↓
+// CompleteTaskUseCase が必要や！DI コンテナに聞くで
+// → 登録されてない → new して作るわ
+// ↓
+// CompleteTaskUseCase のコンストラクタを見る
+// public function __construct(NotificationService $notificationService)
+// ↓
+// NotificationService が必要や！DI コンテナに聞くで
+// → 登録されてない → new して作るわ
+// ↓
+
+// Laravel が自動で実行するコード（イメージ）
+$notificationService = new NotificationService();  // DI で自動生成
+$useCase = new CompleteTaskUseCase($notificationService);  // DI で自動生成
+$controller = new TaskController($useCase);  // DI で自動生成
+$controller->complete($task);
+```
+
+**👩‍💻ユーザー：** 「すごい！私たちは `new` を1つも書いてないのに、全部作られてる！」
+
+**🐘ガネーシャ：** 「せや。これが **DI コンテナ**の力や。**コンストラクタに型を書くだけ**で、Laravel が勝手に作って渡してくれる」
+
+---
+
+#### 📊 図解
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Laravel の自動組み立て                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  API リクエスト                                             │
+│         ↓                                                   │
+│  Laravel「TaskController 作るで」                          │
+│         ↓                                                   │
+│  Laravel「CompleteTaskUseCase が必要やな」                 │
+│         ↓                                                   │
+│  Laravel「NotificationService が必要やな」                 │
+│         ↓                                                   │
+│  Laravel「DI コンテナに聞いてみよ...」                     │
+│         ↓                                                   │
+│  DI コンテナ「特に登録されてないで」                       │
+│         ↓                                                   │
+│  Laravel「ほな new NotificationService() するわ」          │
+│         ↓                                                   │
+│  new CompleteTaskUseCase($notificationService)              │
+│         ↓                                                   │
+│  new TaskController($useCase)                               │
+│         ↓                                                   │
+│  $controller->complete($task) 実行！                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「私たちは型を書くだけで、Laravel が全部組み立ててくれるんですね！」
+
+**🐘ガネーシャ：** 「その通りや！そして**テストの時だけ Mock に差し替えたい**場合は、DI コンテナに『Mock を使え』って登録するんや。そしたら Laravel は Mock を使って組み立ててくれる」
+
+**👩‍💻ユーザー：** 「なるほど！だから `$this->app->instance()` で登録するだけでいいんですね！」
+
+**🐘ガネーシャ：** 「完璧に理解したな！ほな、実際に作っていこか」
+
+---
+
+## 📖 第3章：NotificationService を作ろう
+
+### 🎭 まず通知サービスを作る
+
+**🐘ガネーシャ：** 「ほな、実際に作っていこか。まずは NotificationService やで」
+
+**👩‍💻ユーザー：** 「はい！」
+
+---
+
+### 📁 ディレクトリ構成
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              作成するファイル                                │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  app/                                                       │
+│  └── Services/                                              │
+│      └── NotificationService.php  ← 今から作る！           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**🐘ガネーシャ：** 「Services フォルダがなければ作ってな」
+
+```bash
+mkdir -p app/Services
+```
+
+---
+
+### 📝 NotificationService を作成
+
+**ファイル**: `app/Services/NotificationService.php`
+
+```php
+<?php
+
+namespace App\Services;
+
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * 通知サービス
+ * 
+ * 実際にはログ出力のみ（メール/Slack送信の模擬）
+ * テスト時は Mock に差し替えて使用する
+ */
+class NotificationService
+{
+    /**
+     * 通知を送信する
+     *
+     * @param string $type    通知タイプ（例: 'task_completed'）
+     * @param User   $actor   操作を実行したユーザー
+     * @param array  $payload 通知に含めるデータ
+     * @return void
+     */
+    public function notify(string $type, User $actor, array $payload): void
+    {
+        // 実際のメール送信の代わりにログ出力
+        // （本番ではここで Mail::send() などを呼ぶ）
+        Log::info('[Notification]', [
+            'type' => $type,
+            'actor_id' => $actor->id,
+            'actor_name' => $actor->name,
+            'payload' => $payload,
+        ]);
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「ログ出力だけ...？メール送信しないんですか？」
+
+**🐘ガネーシャ：** 「教材用やからな。本番ではここに `Mail::send()` とか `Slack::post()` とか書くんや。でも今回の目的は**Mock の使い方を学ぶこと**やから、ログ出力で十分やで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              なぜログ出力だけ？                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【今回の目的】                                             │
+│  ・DI の仕組みを理解する                                    │
+│  ・Mock でテストする方法を学ぶ                              │
+│                                                             │
+│  【実際の実装】                                             │
+│  本番では Log::info() の代わりに...                         │
+│  ・Mail::send() でメール送信                                │
+│  ・Http::post() で Slack 送信                               │
+│  ・etc...                                                   │
+│                                                             │
+│  でも、Mock の学習では「何を呼ぶか」は関係ない！            │
+│  大事なのは「Mock に差し替える仕組み」を理解すること        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📖 第4章：CompleteTaskUseCase を修正しよう
+
+### 🎭 通知機能を追加する
+
+**🐘ガネーシャ：** 「次に、タスク完了時に通知を送るよう UseCase を修正するで」
+
+**👩‍💻ユーザー：** 「DI で NotificationService を受け取るんですよね！」
+
+**🐘ガネーシャ：** 「せや！コンストラクタに追加するんや。**絶対に new しないこと**、これが大事やで」
+
+---
+
+### 📝 CompleteTaskUseCase を修正
+
+**ファイル**: `app/UseCases/Task/CompleteTaskUseCase.php`
+
+```php
+<?php
+
+namespace App\UseCases\Task;
+
+use App\Models\Task;
+use App\Models\User;
+use App\Services\NotificationService;        // ← 追加
+use App\Services\Project\ProjectRules;
+use App\Exceptions\ConflictException;
+
+class CompleteTaskUseCase
+{
+    /**
+     * ✅ DI（依存性注入）でサービスを受け取る
+     * 
+     * new しないことで、テスト時に Mock に差し替え可能になる
+     */
+    public function __construct(
+        private NotificationService $notificationService,  // ← 追加
+        private ProjectRules $projectRules,
+    ) {}
+
+    /**
+     * タスクを完了する
+     *
+     * @param Task $task 完了するタスク
+     * @param User $user 操作を実行するユーザー
+     * @return Task 更新されたタスク
+     * @throws ConflictException doing 以外のステータスの場合
+     */
+    public function execute(Task $task, User $user): Task
+    {
+        // ========================================
+        // 1. 権限チェック
+        // ========================================
+        $this->projectRules->ensureMember($task->project, $user);
+
+        // ========================================
+        // 2. ビジネスルールチェック
+        // ========================================
+        if ($task->status !== 'doing') {
+            throw new ConflictException('作業中のタスクのみ完了できます');
+        }
+
+        // ========================================
+        // 3. ステータス更新
+        // ========================================
+        $task->status = 'done';
+        $task->save();
+
+        // ========================================
+        // 4. 通知送信 ← 追加！
+        // ========================================
+        // ✅ DI で受け取った $this->notificationService を使う
+        // テスト時は Mock が渡されるので、本物は動かない
+        $this->notificationService->notify('task_completed', $user, [
+            'task_id' => $task->id,
+            'task_title' => $task->title,
+            'project_id' => $task->project_id,
+            'project_name' => $task->project->name,
+        ]);
+
+        // ========================================
+        // 5. リレーションロード
+        // ========================================
+        $task->load('createdBy', 'project');
+
+        return $task;
+    }
+}
+```
+
+---
+
+### 🤔 変更点を確認
+
+**🐘ガネーシャ：** 「変更点を整理するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              CompleteTaskUseCase の変更点                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  use 文を追加                                           │
+│      use App\Services\NotificationService;                  │
+│                                                             │
+│  2️⃣  コンストラクタに追加                                   │
+│      private NotificationService $notificationService       │
+│                                                             │
+│  3️⃣  execute() 内で notify() を呼び出す                     │
+│      $this->notificationService->notify('task_completed', ...)│
+│                                                             │
+│  ✅ new NotificationService() とは書いてない！              │
+│  ✅ 外から受け取ってるから、差し替え可能！                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「`new` してない！これが DI ですね！」
+
+**🐘ガネーシャ：** 「せや！Laravel が自動で NotificationService を作って渡してくれるんや」
+
+---
+
+## 📖 第5章：動作確認しよう
+
+### 🎭 まず本番の動作を確認
+
+**🐘ガネーシャ：** 「テストを書く前に、まず普通に動くか確認しよか」
+
+**👩‍💻ユーザー：** 「Postman で試してみます！」
+
+---
+
+### 📝 API を実行
+
+```
+POST /api/tasks/{task_id}/complete
+Authorization: Bearer {token}
+```
+
+**🐘ガネーシャ：** 「doing 状態のタスクで試してみ」
+
+---
+
+### 📝 ログを確認
+
+```bash
+# storage/logs/laravel.log を確認
+tail -f storage/logs/laravel.log
+```
+
+```
+[2024-01-15 10:30:45] local.INFO: [Notification] {
+    "type": "task_completed",
+    "actor_id": 1,
+    "actor_name": "山田太郎",
+    "payload": {
+        "task_id": 5,
+        "task_title": "サンプルタスク",
+        "project_id": 1,
+        "project_name": "プロジェクトA"
+    }
+}
+```
+
+**👩‍💻ユーザー：** 「ログに出力されてる！通知機能が動いてますね」
+
+**🐘ガネーシャ：** 「せや。本番ではこれがメール送信になるわけや。でも、テストでメール送信（この場合はログ出力）されたら、テストが外部に依存してしまうよな？」
+
+**👩‍💻ユーザー：** 「はい...『通知が呼ばれたか』だけ確認できればいいのに...」
+
+**🐘ガネーシャ：** 「そこで**Mock**の出番や！」
+
+---
+
+## 📖 第6章：Mock の文法を学ぼう
+
+### 🎭 Mock って何？
+
+**🐘ガネーシャ：** 「テストを書く前に、Mock の文法を詳しく説明するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Mock（モック）とは？                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  本物のクラスと「同じ型」を持つ偽物                         │
+│                                                             │
+│  【本物: NotificationService】                              │
+│  → notify() を呼ぶとログ出力（本番ならメール送信）         │
+│                                                             │
+│  【Mock: Mockery::mock(NotificationService::class)】        │
+│  → notify() を呼んでも何もしない（偽物だから）             │
+│  → 代わりに「呼ばれたかどうか」を記録する                  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📝 `$this->app->instance()` の意味
+
+**🐘ガネーシャ：** 「まず、Mock を DI コンテナに登録する方法から説明するで」
+
+#### 基本構文
+
+```php
+$this->app->instance(クラス名::class, 渡したいオブジェクト);
+```
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              $this->app->instance() とは？                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  「この型が必要になったら、このオブジェクトを使え」         │
+│  と DI コンテナに登録するメソッド                           │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  $this->app                                                 │
+│      ↑ Laravel の DI コンテナ（サービスコンテナ）          │
+│                                                             │
+│  ->instance(                                                │
+│      NotificationService::class,  ← この型が必要な時は     │
+│      $mock                        ← これを渡せ             │
+│  );                                                         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 具体例
+
+```php
+// Mock を作成
+$mock = Mockery::mock(NotificationService::class);
+
+// DI コンテナに登録
+// 「NotificationService が必要な時は $mock を使え」
+$this->app->instance(NotificationService::class, $mock);
+
+// この後、Laravel が NotificationService を必要とした時、
+// new NotificationService() ではなく $mock が渡される
+```
+
+---
+
+### 📝 Mockery の基本メソッド
+
+#### Mock の作成
+
+```php
+$mock = Mockery::mock(NotificationService::class);
+```
+
+| 部分 | 意味 |
+|------|------|
+| `Mockery::mock()` | 偽物（Mock）を作るメソッド |
+| `NotificationService::class` | どの型の偽物を作るか |
+| `$mock` | 作られた偽物オブジェクト |
+
+---
+
+#### shouldReceive() - メソッドが呼ばれることを期待
+
+```php
+$mock->shouldReceive('notify');
+```
+
+| 部分 | 意味 |
+|------|------|
+| `shouldReceive()` | 「このメソッドが呼ばれるはず」と宣言 |
+| `'notify'` | 呼ばれるメソッド名 |
+
+```
+「notify() が呼ばれるはずやで」と宣言する。
+テスト終了時に呼ばれてなかったらエラーになる。
+```
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              ⚠️ 重要：メソッド名は本物と一致させる           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  shouldReceive('notify') の 'notify' は                    │
+│  本物の NotificationService のメソッド名と同じ！            │
+│                                                             │
+│  【本物のクラス】                                           │
+│  class NotificationService {                                │
+│      public function notify(...) { ... }  ← このメソッド名 │
+│  }                                                          │
+│                                                             │
+│  【Mock の設定】                                            │
+│  $mock->shouldReceive('notify')  ← 同じ名前を指定！        │
+│                                                             │
+│  ❌ 間違い例                                                │
+│  $mock->shouldReceive('sendNotification')  ← 存在しない！  │
+│  → 本物には notify() しかないのに別の名前を指定してもダメ │
+│                                                             │
+│  💡 本物のメソッドが何か確認してから書こう！               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+#### once() - 1回だけ呼ばれることを期待
+
+```php
+$mock->shouldReceive('notify')->once();
+```
+
+| メソッド | 意味 |
+|----------|------|
+| `once()` | 1回だけ呼ばれる |
+| `twice()` | 2回呼ばれる |
+| `times(3)` | 3回呼ばれる |
+| `never()` | 1回も呼ばれない（`shouldNotReceive()` と同じ） |
+
+```
+「notify() がちょうど1回呼ばれるはずやで」と宣言する。
+0回でも2回でもエラーになる。
+```
+
+---
+
+#### shouldNotReceive() - メソッドが呼ばれないことを期待
+
+```php
+$mock->shouldNotReceive('notify');
+```
+
+```
+「notify() は絶対に呼ばれないはずやで」と宣言する。
+1回でも呼ばれたらエラーになる。
+
+例: エラーケースのテストで、通知が送信されないことを確認したい時
+```
+
+---
+
+#### with() - 引数を検証
+
+```php
+$mock->shouldReceive('notify')
+    ->once()
+    ->with('task_completed', $user, $payload);
+```
+
+| 部分 | 意味 |
+|------|------|
+| `with()` | 「この引数で呼ばれるはず」と宣言 |
+| 第1引数 | `'task_completed'` と一致するか |
+| 第2引数 | `$user` と一致するか |
+| 第3引数 | `$payload` と一致するか |
+
+```
+「notify() が、この引数で呼ばれるはずやで」と宣言する。
+引数が違ったらエラーになる。
+```
+
+---
+
+#### Mockery::on() - 引数を柔軟に検証
+
+```php
+$mock->shouldReceive('notify')
+    ->once()
+    ->with(
+        'task_completed',
+        Mockery::on(fn($actor) => $actor->id === 1),
+        Mockery::on(fn($payload) => $payload['task_id'] === 5)
+    );
+```
+
+| 部分 | 意味 |
+|------|------|
+| `Mockery::on()` | 引数をコールバック関数で検証 |
+| `fn($actor) => $actor->id === 1` | 「$actor->id が 1 なら OK」 |
+| `fn($payload) => ...` | 「$payload['task_id'] が 5 なら OK」 |
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Mockery::on() はいつ使う？                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  引数が「完全一致」では検証しにくい時                       │
+│                                                             │
+│  例: User オブジェクトは毎回新しく作られるので              │
+│      $user === $user では比較できない                       │
+│      → Mockery::on(fn($u) => $u->id === 1) で ID だけ比較  │
+│                                                             │
+│  例: 配列の一部だけ検証したい時                             │
+│      → Mockery::on(fn($p) => $p['task_id'] === 5)          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「オブジェクトは毎回新しく作られるから、完全一致では比較できないんですね！」
+
+**🐘ガネーシャ：** 「せや！だから `Mockery::on()` を使って、ID だけで比較するんや」
+
+---
+
+#### withArgs() - 複数引数をまとめて検証
+
+```php
+$mock->shouldReceive('notify')
+    ->once()
+    ->withArgs(function ($type, $actor, $payload) use ($task) {
+        return $type === 'task_completed'
+            && $actor->id === 1
+            && $payload['task_id'] === $task->id;
+    });
+```
+
+```
+複数の引数をまとめて1つのコールバックで検証できる。
+すべての条件が true なら OK。
+```
+
+---
+
+### 📊 よく使うパターン一覧
+
+```php
+<?php
+
+// ============================================
+// パターン1: 単純に「呼ばれたか」だけ確認
+// ============================================
+$mock = Mockery::mock(NotificationService::class);
+$mock->shouldReceive('notify')->once();
+
+
+// ============================================
+// パターン2: 「呼ばれない」ことを確認
+// ============================================
+$mock = Mockery::mock(NotificationService::class);
+$mock->shouldNotReceive('notify');
+
+
+// ============================================
+// パターン3: 引数も含めて厳密に確認
+// ============================================
+$mock = Mockery::mock(NotificationService::class);
+$mock->shouldReceive('notify')
+    ->once()
+    ->with('task_completed', Mockery::any(), Mockery::any());
+
+
+// ============================================
+// パターン4: 引数の一部を柔軟に確認
+// ============================================
+$mock = Mockery::mock(NotificationService::class);
+$mock->shouldReceive('notify')
+    ->once()
+    ->with(
+        'task_completed',
+        Mockery::on(fn($actor) => $actor->id === $this->user->id),
+        Mockery::on(fn($payload) => $payload['task_id'] === $task->id)
+    );
+
+
+// ============================================
+// パターン5: 複数引数をまとめて確認
+// ============================================
+$mock = Mockery::mock(NotificationService::class);
+$mock->shouldReceive('notify')
+    ->once()
+    ->withArgs(function ($type, $actor, $payload) use ($task) {
+        return $type === 'task_completed'
+            && $actor->id === $this->user->id
+            && $payload['task_id'] === $task->id
+            && $payload['task_title'] === $task->title;
+    });
+```
+
+**👩‍💻ユーザー：** 「色んなパターンがあるんですね！」
+
+**🐘ガネーシャ：** 「せや。今回は**パターン4**を使うで。引数の一部だけ柔軟に確認するパターンや」
+
+---
+
+## 📖 第7章：Mock を使ったテストを書こう
+
+### 📝 テストファイルを作成
+
+**🐘ガネーシャ：** 「ほな、テストファイルを作るで」
+
+```bash
+sail artisan make:test Api/TaskCompleteWithNotificationTest
+```
+
+---
+
+### 📝 テストコードを書く
+
+**ファイル**: `tests/Feature/Api/TaskCompleteWithNotificationTest.php`
+
+```php
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\Membership;
+use App\Models\Project;
+use App\Models\Task;
+use App\Models\User;
+use App\Services\NotificationService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
+use Tests\TestCase;
+
+class TaskCompleteWithNotificationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $user;
+    private Project $project;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create();
+        $this->project = Project::factory()->create();
+
+        Membership::factory()->create([
+            'user_id' => $this->user->id,
+            'project_id' => $this->project->id,
+            'role' => 'project_member',
+        ]);
+    }
+
+    /**
+     * タスク完了時に通知が送信されることを確認
+     */
+    public function test_タスク完了時に通知が送信される(): void
+    {
+        // ============================================
+        // 1. テストデータ準備
+        // ============================================
+        $task = Task::factory()->create([
+            'project_id' => $this->project->id,
+            'created_by' => $this->user->id,
+            'status' => 'doing',
+        ]);
+
+        // ============================================
+        // 2. Mock を作成
+        //    「NotificationService の偽物を作る」
+        // ============================================
+        $mockNotification = Mockery::mock(NotificationService::class);
+        
+        // ============================================
+        // 3. 期待する動作を定義
+        //    「notify() が1回、この引数で呼ばれるはず」
+        // ============================================
+        $mockNotification
+            ->shouldReceive('notify')
+            ->once()
+            ->with(
+                'task_completed',                                           // 第1引数: type
+                Mockery::on(fn($actor) => $actor->id === $this->user->id),  // 第2引数: actor
+                Mockery::on(fn($payload) => $payload['task_id'] === $task->id)  // 第3引数: payload
+            );
+
+        // ============================================
+        // 4. ✅ Mock を DI コンテナに登録（差し替え）
+        //    「NotificationService が必要な時は Mock を使え」
+        // ============================================
+        $this->app->instance(NotificationService::class, $mockNotification);
+
+        // ============================================
+        // 5. API を実行
+        //    Laravel が UseCase を作る時、Mock が注入される
+        // ============================================
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/tasks/{$task->id}/complete");
+
+        // ============================================
+        // 6. レスポンスを検証
+        // ============================================
+        $response->assertStatus(200);
+        $response->assertJson([
+            'data' => [
+                'status' => 'done',
+            ]
+        ]);
+
+        // ============================================
+        // 7. Mock の検証（自動）
+        //    テスト終了時に Mockery が自動で確認する
+        //    - notify() は1回呼ばれたか？
+        //    - 引数は正しかったか？
+        // ============================================
+    }
+}
+```
+
+---
+
+### 🤔 テストの流れを整理
+
+**🐘ガネーシャ：** 「テストの流れを整理するで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Mock テストの流れ                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  テストデータ準備（Task を作成）                        │
+│                                                             │
+│  2️⃣  Mock を作成（偽物を作る）                              │
+│      $mock = Mockery::mock(NotificationService::class);     │
+│                                                             │
+│  3️⃣  期待する動作を定義（こう呼ばれるはず）                 │
+│      $mock->shouldReceive('notify')->once()->with(...);     │
+│                                                             │
+│  4️⃣  DI コンテナに登録（差し替え）                          │
+│      $this->app->instance(..., $mock);                      │
+│                                                             │
+│  5️⃣  API を実行（Mock が使われる）                          │
+│      $this->postJson('/api/tasks/{id}/complete');           │
+│                                                             │
+│  6️⃣  レスポンスを検証                                       │
+│      $response->assertStatus(200);                          │
+│                                                             │
+│  7️⃣  Mock の検証（自動）                                    │
+│      Mockery が「期待通り呼ばれたか」を自動で確認          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 🎭 テストを実行
+
+**🐘ガネーシャ：** 「ほな、テストを実行してみよか」
+
+```bash
+sail artisan test --filter=TaskCompleteWithNotificationTest
+```
+
+```
+   PASS  Tests\Feature\Api\TaskCompleteWithNotificationTest
+  ✓ タスク完了時に通知が送信される                           0.25s
+
+  Tests:    1 passed (2 assertions)
+  Duration: 0.35s
+```
+
+**👩‍💻ユーザー：** 「通った！🎉」
+
+**🐘ガネーシャ：** 「ポイントはな、**ログに何も出力されてない**ことや。本物の NotificationService は動いてないんや」
+
+**👩‍💻ユーザー：** 「確かに！Mock に差し替えたから、本物の `Log::info()` は呼ばれてないんですね！」
+
+**🐘ガネーシャ：** 「せや。テストでは『notify() が正しい引数で呼ばれたか』だけを確認しとるんや。実際にログ出力されたかどうかは関係ないんや」
+
+---
+
+## 📖 第8章：異常系のテストも書こう
+
+### 🎭 通知が呼ばれないケースをテスト
+
+**🐘ガネーシャ：** 「正常系だけやのうて、『通知が呼ばれないケース』もテストしとこか」
+
+**👩‍💻ユーザー：** 「todo のタスクを完了しようとしたら、409 エラーになりますよね。その時は通知も送られないはず...」
+
+**🐘ガネーシャ：** 「せや！そういう時は `shouldNotReceive()` を使うんや」
+
+---
+
+### 📝 異常系テストを追加
+
+```php
+/**
+ * todo 状態のタスクは完了できず、通知も送信されない
+ */
+public function test_todo状態のタスクは完了できず通知も送信されない(): void
+{
+    // ============================================
+    // 1. テストデータ準備
+    // ============================================
+    $task = Task::factory()->create([
+        'project_id' => $this->project->id,
+        'created_by' => $this->user->id,
+        'status' => 'todo',  // ← doing ではない！
+    ]);
+
+    // ============================================
+    // 2. Mock を作成（通知が呼ばれないことを期待）
+    // ============================================
+    $mockNotification = Mockery::mock(NotificationService::class);
+    $mockNotification->shouldNotReceive('notify');  // ← 呼ばれないはず
+
+    $this->app->instance(NotificationService::class, $mockNotification);
+
+    // ============================================
+    // 3. API を実行
+    // ============================================
+    $response = $this->actingAs($this->user)
+        ->postJson("/api/tasks/{$task->id}/complete");
+
+    // ============================================
+    // 4. レスポンスを検証
+    // ============================================
+    $response->assertStatus(409);
+    // Mockery が自動で「notify が呼ばれなかったか」を検証
+}
+```
+
+**👩‍💻ユーザー：** 「`shouldNotReceive('notify')` で『呼ばれないはず』って宣言するんですね！」
+
+**🐘ガネーシャ：** 「せや。もし呼ばれたらテストが失敗するで。これで『エラーの時は通知が送られない』ことを保証できるんや」
+
+---
+
+### 📊 shouldReceive vs shouldNotReceive
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              shouldReceive vs shouldNotReceive              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【shouldReceive('notify')->once()】                        │
+│  「notify() が1回呼ばれるはず」                             │
+│  → 0回でも2回でもエラー                                    │
+│  → 正常系のテストで使う                                    │
+│                                                             │
+│  【shouldNotReceive('notify')】                             │
+│  「notify() は絶対に呼ばれないはず」                        │
+│  → 1回でも呼ばれたらエラー                                 │
+│  → 異常系のテストで使う                                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📝 引数を詳細に検証するテストも追加
+
+**🐘ガネーシャ：** 「ついでに、引数を詳細に検証するテストも追加しとこか」
+
+```php
+/**
+ * 通知に正しいペイロードが渡される
+ */
+public function test_通知に正しいペイロードが渡される(): void
+{
+    // Arrange
+    $task = Task::factory()->create([
+        'project_id' => $this->project->id,
+        'created_by' => $this->user->id,
+        'status' => 'doing',
+        'title' => 'テストタスク',
+    ]);
+
+    // Mock を作成（引数を詳細に検証）
+    $mockNotification = Mockery::mock(NotificationService::class);
+    
+    $mockNotification
+        ->shouldReceive('notify')
+        ->once()
+        ->withArgs(function ($type, $actor, $payload) use ($task) {
+            return $type === 'task_completed'
+                && $actor->id === $this->user->id
+                && $payload['task_id'] === $task->id
+                && $payload['task_title'] === 'テストタスク'
+                && $payload['project_id'] === $this->project->id;
+        });
+
+    $this->app->instance(NotificationService::class, $mockNotification);
+
+    // Act
+    $response = $this->actingAs($this->user)
+        ->postJson("/api/tasks/{$task->id}/complete");
+
+    // Assert
+    $response->assertStatus(200);
+}
+```
+
+**👩‍💻ユーザー：** 「`withArgs()` を使うと、すべての引数をまとめて検証できるんですね！」
+
+**🐘ガネーシャ：** 「せや。複雑な検証をする時はこっちの方が見やすいで」
+
+---
+
+### 🎭 テストを実行
+
+```bash
+sail artisan test --filter=TaskCompleteWithNotificationTest
+```
+
+```
+   PASS  Tests\Feature\Api\TaskCompleteWithNotificationTest
+  ✓ タスク完了時に通知が送信される                           0.23s
+  ✓ todo状態のタスクは完了できず通知も送信されない           0.18s
+  ✓ 通知に正しいペイロードが渡される                         0.20s
+
+  Tests:    3 passed (4 assertions)
+  Duration: 0.68s
+```
+
+**👩‍💻ユーザー：** 「全部通った！🎉」
+
+---
+
+## 📝 まとめ
+
+### 🎯 今日学んだこと
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    📝 Lesson 8-1 まとめ                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  DI（依存性注入）とは                                   │
+│      → 「自分で作らない（new しない）。外からもらう」      │
+│      → コンストラクタの引数で受け取る                      │
+│      → Laravel が自動で渡してくれる                        │
+│                                                             │
+│  2️⃣  DI コンテナ（サービスコンテナ）                        │
+│      → 「この型が必要な時は、これを渡せ」という対応表      │
+│      → instance() > bind() > デフォルト の優先順位         │
+│                                                             │
+│  3️⃣  なぜ DI を使うのか                                     │
+│      → new すると差し替え不可能                            │
+│      → DI で受け取ると差し替え可能（Mock に置換できる）   │
+│                                                             │
+│  4️⃣  Mock の基本                                            │
+│      → Mockery::mock() で偽物を作成                        │
+│      → shouldReceive() で「呼ばれるはず」を定義            │
+│      → shouldNotReceive() で「呼ばれないはず」を定義       │
+│      → with() / Mockery::on() / withArgs() で引数を検証   │
+│                                                             │
+│  5️⃣  DI コンテナへの登録                                    │
+│      → $this->app->instance() で Mock を登録               │
+│      → これで本物が偽物に差し替わる                        │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📊 DI の全体像
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              DI と Mock の関係                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【本番の動き】                                             │
+│                                                             │
+│  Controller → UseCase → NotificationService（本物）        │
+│                              ↓                              │
+│                         Log::info() 実行                    │
+│                   （本番なら Mail::send()）                 │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  【テストの動き】                                           │
+│                                                             │
+│  $this->app->instance(..., $mock);  ← 差し替え指示         │
+│                                                             │
+│  Controller → UseCase → Mock（偽物）                       │
+│                              ↓                              │
+│                         何もしない                          │
+│                   （呼ばれたことだけ記録）                 │
+│                                                             │
+│  → 本物の処理は実行されない！🎉                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📚 次回予告
+
+**🐘ガネーシャ：** 「今回は DI の基本を学んだな。次回は...」
+
+**👩‍💻ユーザー：** 「次は何を学ぶんですか？」
+
+**🐘ガネーシャ：** 「**Interface を使った DI** や。今回の方法でも十分やけど、Interface を使うともっと柔軟に切り替えられるようになるで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              今回 vs 次回                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【今回（パターン A）】                                     │
+│  ・Interface なし                                           │
+│  ・シンプルで分かりやすい                                   │
+│  ・Mock のテストは問題なくできる                           │
+│                                                             │
+│  【次回（パターン B）】                                     │
+│  ・Interface あり                                           │
+│  ・本番とテスト以外にも、複数の実装を切り替え可能          │
+│  ・例：ログ版、メール版、Slack版 を簡単に切り替え         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**🐘ガネーシャ：** 「今回の内容をしっかり理解してから次に進むんやで！DI は最初は難しく感じるかもしれへんけど、慣れたら『なんで今まで new してたんやろ』ってなるで」
+
+**👩‍💻ユーザー：** 「はい！『new しない、外からもらう』が大事なんですね！」
+
+**🐘ガネーシャ：** 「その通りや！さすガネーシャや！🐘✨」
+
+---
+
+### 🍨 おまけ：今回のキーワード
+
+| キーワード | 意味 |
+|------------|------|
+| DI（依存性注入） | 外からもらう。new しない |
+| DI コンテナ | 「この型にはこれを渡せ」という対応表 |
+| Mock | 本物と同じ型を持つ偽物 |
+| `Mockery::mock()` | Mock を作成 |
+| `shouldReceive()` | 呼ばれるはずと宣言 |
+| `shouldNotReceive()` | 呼ばれないはずと宣言 |
+| `once()` / `twice()` / `times(n)` | 呼ばれる回数を指定 |
+| `with()` | 引数を厳密に検証 |
+| `Mockery::on()` | 引数を柔軟に検証（コールバック） |
+| `withArgs()` | 複数引数をまとめて検証 |
+| `$this->app->instance()` | DI コンテナに登録 |
+
+**🐘ガネーシャ：** 「ほな、またな！」
+
+**👩‍💻ユーザー & 🐘ガネーシャ：** 「はい、Oh, My God!!」 🙏
