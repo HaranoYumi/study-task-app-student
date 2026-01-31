@@ -8,8 +8,6 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use App\Services\NotificationService;
-use Mockery;
 use Tests\TestCase;
 
 class TaskApiTest extends TestCase
