@@ -885,6 +885,7 @@ class CompleteTaskUseCase
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Vite;
 use App\Services\Notification\NotificationServiceInterface;
 use App\Services\Notification\LogNotificationService;
 use App\Services\Notification\MailNotificationService;
@@ -912,7 +913,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Vite::prefetch(concurrency: 3);
     }
 }
 ```
