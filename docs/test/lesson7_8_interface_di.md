@@ -128,6 +128,7 @@ class LogNotificationService
         Log::info('[Notification]', [
             'type' => $type,
             'actor_id' => $actor->id,
+            'actor_name' => $actor->name,
             'payload' => $payload,
         ]);
     }
@@ -229,9 +230,79 @@ public function test_タスクを作成できる(): void
 
 **👩‍💻ユーザー：** 「え...えっと...`LogNotificationService` の中身を書き換えて、`Log::info()` を `Mail::send()` に変えれば...」
 
-**🐘ガネーシャ：** 「ほな、開発環境ではログのままにしたい場合は？」
+```php
+<?php
+// 👩‍💻ユーザーが考えた方法（単純に書き換え）
 
-**👩‍💻ユーザー：** 「うーん...`LogNotificationService` の中に `if` 文を書いて、環境によって分岐させる...？」
+class LogNotificationService  // ← 🤔 あれ？クラス名は「Log」なのに...
+{
+    public function notify(string $type, User $actor, array $payload): void
+    {
+        // Log::info() を Mail::send() に変える
+        Mail::raw("通知: {$type}", function ($message) use ($actor) {  // ← メール送信してる！
+            $message->to($actor->email);
+        });
+    }
+}
+```
+
+**🐘ガネーシャ：** 「ちょっと待ち。そのコード、なんかおかしくないか？」
+
+**👩‍💻ユーザー：** 「え？」
+
+**🐘ガネーシャ：** 「クラス名は `LogNotificationService` やのに、中身はメール送信しとるやん。**クラス名と実装内容が合ってない**んや」
+
+**👩‍💻ユーザー：** 「あ...確かに。`LogNotificationService` なのにログ出力してない...」
+
+**🐘ガネーシャ：** 「これは**嘘のクラス名**になっとる。他の開発者が見たら『ログ出力するんやな』と思うのに、実際はメール送信する。これはバグの温床やで」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              😱 クラス名と実装が合わない問題                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【クラス名】LogNotificationService                         │
+│  【期待する動作】ログ出力                                   │
+│  【実際の動作】メール送信                                   │
+│                                                             │
+│  ❌ クラス名が嘘になってる！                               │
+│  ❌ 他の開発者が混乱する                                   │
+│  ❌ コードを読んだだけでは何をするか分からない             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「じゃあクラス名を `MailNotificationService` に変えれば...」
+
+**🐘ガネーシャ：** 「ほな、そうすると**UseCase のコードも全部書き換えなアカン**やん」
+
+```php
+<?php
+// 😱 UseCase も全部書き換えが必要！
+
+// CreateTaskUseCase.php
+use App\Services\Notification\LogNotificationService;  // ❌ 削除
+use App\Services\Notification\MailNotificationService; // ← 追加
+private MailNotificationService $notificationService;  // ← 変更
+
+// StartTaskUseCase.php
+use App\Services\Notification\LogNotificationService;  // ❌ 削除
+use App\Services\Notification\MailNotificationService; // ← 追加
+private MailNotificationService $notificationService;  // ← 変更
+
+// CompleteTaskUseCase.php
+use App\Services\Notification\LogNotificationService;  // ❌ 削除
+use App\Services\Notification\MailNotificationService; // ← 追加
+private MailNotificationService $notificationService;  // ← 変更
+
+// 😱 3つの UseCase で合計 6箇所も変更が必要！
+```
+
+**👩‍💻ユーザー：** 「うわ...UseCase が増えれば増えるほど、変更箇所が増えていく...」
+
+**🐘ガネーシャ：** 「せやろ？しかも、開発環境ではログのままにしたい場合はどうするんや？」
+
+**👩‍💻ユーザー：** 「うーん...じゃあ `LogNotificationService` の中に `if` 文を書いて、環境によって分岐させる...？」
 
 ```php
 <?php
@@ -361,30 +432,35 @@ class LogNotificationService
 
 ---
 
-### 😱 さらに UseCase が複数ある問題
+### 💡 解決策は？
 
-**🐘ガネーシャ：** 「さらに言うとな、UseCase が3つあるやろ？もし `LogNotificationService` を `MailNotificationService` に変えたくなったら、**3つの UseCase 全部書き換える**必要があるんや」
+**👩‍💻ユーザー：** 「結局、どうすればいいんですか...？😭」
 
-```php
-<?php
-// 😱 3つの UseCase を全部書き換える必要がある！
+**🐘ガネーシャ：** 「ここまでの問題を整理すると、全部**具体的なクラスに依存している**ことが原因なんや」
 
-// CreateTaskUseCase.php
-private LogNotificationService $notificationService;  // ← 変更
-private MailNotificationService $notificationService;
-
-// StartTaskUseCase.php
-private LogNotificationService $notificationService;  // ← 変更
-private MailNotificationService $notificationService;
-
-// CompleteTaskUseCase.php
-private LogNotificationService $notificationService;  // ← 変更
-private MailNotificationService $notificationService;
+```
+┌─────────────────────────────────────────────────────────────┐
+│              問題のまとめ                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1️⃣  クラス名と実装が合わなくなる                           │
+│      → LogNotificationService なのにメール送信...         │
+│                                                             │
+│  2️⃣  UseCase を全部書き換える必要がある                     │
+│      → 3つの UseCase で合計6箇所の変更...                 │
+│                                                             │
+│  3️⃣  if 文がどんどん増えて複雑になる                        │
+│      → 本番/ステージング/開発/お客さんごと...             │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  💡 原因：UseCase が「LogNotificationService」という        │
+│           具体的なクラスに直接依存しているから              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「うわ...3箇所も書き換えないといけないんですか...！しかも use 文も全部変えないと...」
-
-**🐘ガネーシャ：** 「せや。これが**具体的なクラスに依存している**ことの問題や。もっとスマートな方法があるんやで」
+**🐘ガネーシャ：** 「もっとスマートな方法があるんやで」
 
 **👩‍💻ユーザー：** 「教えてください！🙏」
 
@@ -809,6 +885,7 @@ class CompleteTaskUseCase
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Vite;
 use App\Services\Notification\NotificationServiceInterface;
 use App\Services\Notification\LogNotificationService;
 use App\Services\Notification\MailNotificationService;
@@ -836,7 +913,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Vite::prefetch(concurrency: 3);
     }
 }
 ```
@@ -1202,6 +1279,12 @@ public function test_doingステータスのタスクを完了できる(): void
 
 ### 📝 Step 1: Interface を作成
 
+**🐘ガネーシャ：** 「まずは Interface ファイルを作るで。ターミナルで touch コマンドを実行してな」
+
+```bash
+touch app/Services/Notification/NotificationServiceInterface.php
+```
+
 **ファイル**: `app/Services/Notification/NotificationServiceInterface.php`
 
 ```php
@@ -1268,11 +1351,17 @@ class LogNotificationService implements NotificationServiceInterface  // ← 追
 }
 ```
 
-**🐘ガネーシャ：** 「前回作った `NotificationService` を `Notification` フォルダに移動して、`implements NotificationServiceInterface` を追加するんや」
+**🐘ガネーシャ：** 「 `LogNotificationService` に`implements NotificationServiceInterface` を追加するんや」
 
 ---
 
 ### 📝 Step 4: メール版の実装クラスを作成
+
+**🐘ガネーシャ：** 「次はメール版のクラスを作るで」
+
+```bash
+touch app/Services/Notification/MailNotificationService.php
+```
 
 **ファイル**: `app/Services/Notification/MailNotificationService.php`
 
@@ -1315,9 +1404,10 @@ class MailNotificationService implements NotificationServiceInterface
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 use App\Services\Notification\NotificationServiceInterface;
 use App\Services\Notification\LogNotificationService;
-use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -1338,9 +1428,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Vite::prefetch(concurrency: 3);
     }
 }
+
 ```
 
 ---
@@ -1358,6 +1449,7 @@ namespace App\UseCases\Task;
 
 use App\Models\Task;
 use App\Models\User;
+// use App\Services\Notification\LogNotificationService;  ← 削除
 use App\Services\Notification\NotificationServiceInterface;  // ← 変更
 use App\Services\Project\ProjectRules;
 use App\Exceptions\ConflictException;
@@ -1402,6 +1494,7 @@ class CompleteTaskUseCase
 use 文を変更：
 
 ```php
+// use App\Services\Notification\LogNotificationService; ← 削除
 use App\Services\Notification\NotificationServiceInterface;  // ← 変更
 use Mockery;
 ```
@@ -1524,6 +1617,16 @@ MAIL_FROM_ADDRESS="noreply@example.com"
 MAIL_FROM_NAME="${APP_NAME}"
 ```
 
+**🐘ガネーシャ：** 「`.env` を変更したら、設定のキャッシュをクリアして再生成するんやで」
+
+```bash
+sail artisan config:clear && sail artisan config:cache
+```
+
+**👩‍💻ユーザー：** 「これ必要なんですか？」
+
+**🐘ガネーシャ：** 「Laravel は設定をキャッシュしとることがあるんや。`.env` を変えても反映されへん時があるから、毎回クリアしておくのが確実やで」
+
 **🐘ガネーシャ：** 「`MAIL_USERNAME` と `MAIL_PASSWORD` は Mailtrap の管理画面からコピーしてな」
 
 **👩‍💻ユーザー：** 「この設定は、`MailNotificationService` の中で使われるんですか？」
@@ -1561,10 +1664,16 @@ public function register(): void
 }
 ```
 
-**🐘ガネーシャ：** 「Postman でタスク完了 API を実行してみ」
+**🐘ガネーシャ：** 「API を実行する前に、データベースをリセットしておこか」
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+**🐘ガネーシャ：** 「ほな、Postman でタスク完了 API を実行してみ」
 
 ```
-POST /api/tasks/{task_id}/complete
+POST /api/tasks/3/complete
 Authorization: Bearer {token}
 ```
 
@@ -1631,10 +1740,14 @@ class AppServiceProvider extends ServiceProvider
 
 ### 📝 Step 4: メール送信を確認
 
-**🐘ガネーシャ：** 「もう一回 API を実行してみ」
+**🐘ガネーシャ：** 「データベースをリセットして、もう一回 API を実行してみ」
+
+```bash
+sail artisan migrate:refresh --seed
+```
 
 ```
-POST /api/tasks/{task_id}/complete
+POST /api/tasks/3/complete
 Authorization: Bearer {token}
 ```
 
@@ -1664,7 +1777,11 @@ Authorization: Bearer {token}
 
 ### 📝 Step 5: 他の UseCase も確認
 
-**🐘ガネーシャ：** 「タスク作成とタスク開始も試してみ」
+**🐘ガネーシャ：** 「データベースをリセットして、タスク作成とタスク開始も試してみ」
+
+```bash
+sail artisan migrate:refresh --seed
+```
 
 ```
 # タスク作成
@@ -1672,7 +1789,7 @@ POST /api/projects/{project_id}/tasks
 → Mailtrap に「task_created」のメールが届く
 
 # タスク開始  
-POST /api/tasks/{task_id}/start
+POST /api/tasks/4/start
 → Mailtrap に「task_started」のメールが届く
 ```
 
@@ -1976,10 +2093,11 @@ class CompleteTaskUseCase
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 use App\Services\Notification\NotificationServiceInterface;
 use App\Services\Notification\LogNotificationService;
-use App\Services\Notification\MailNotificationService;
-use Illuminate\Support\ServiceProvider;
+use App\Services\Notification\MailNotificationService;  // ← 追加
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -2005,66 +2123,190 @@ class AppServiceProvider extends ServiceProvider
             );
         }
     }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        Vite::prefetch(concurrency: 3);
+    }
 }
+
 ```
 
 **👩‍💻ユーザー：** 「第3章で見たコードですね！」
 
-**🐘ガネーシャ：** 「せや。`.env` の `APP_ENV` を見て自動で切り替わるんや」
+**🐘ガネーシャ：** 「せや。`.env` の `APP_ENV` を見て自動で切り替わるんや。ほな、実際に動作確認してみよか！」
 
 ---
 
-#### 環境ごとの .env 設定
+#### 動作確認：APP_ENV を切り替えて体験しよう
 
-**🐘ガネーシャ：** 「環境ごとの `.env` 設定を確認しとこか」
+**🐘ガネーシャ：** 「今から `.env` の `APP_ENV` を変えて、**ログ版とメール版が切り替わる**のを体験するで！」
+
+**👩‍💻ユーザー：** 「おお！やってみたいです！」
+
+---
+
+##### Step 7-1: 現在の状態を確認（APP_ENV=local）
+
+**🐘ガネーシャ：** 「まず、今の `.env` を確認してみ」
+
+**ファイル**: `.env`
+
+```bash
+APP_ENV=local
+```
+
+**🐘ガネーシャ：** 「`APP_ENV=local` やから、`LogNotificationService`（ログ版）が使われるはずや。API を実行する前に、データベースをリセットしておこか」
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+**🐘ガネーシャ：** 「ほな、API を実行してみ」
+
+```
+POST /api/tasks/3/complete
+Authorization: Bearer {token}
+```
+
+**🐘ガネーシャ：** 「ログファイルを確認してみ」
+
+```
+📁 storage/logs/laravel-YYYY-MM-DD.log
+```
+
+**💡 ヒント：** ログファイルは日付ごとに分かれてるで。今日の日付のファイルを開いてな。
+
+```
+[2024-01-15 10:30:45] local.INFO: [Notification] {
+    "type": "task_completed",
+    "actor_id": 1,
+    "actor_name": "山田太郎",
+    "payload": { ... }
+}
+```
+
+**👩‍💻ユーザー：** 「ログに出力されてますね！Mailtrap にはメールは届いてないはず...」
+
+**🐘ガネーシャ：** 「せや。`APP_ENV=local` やから `LogNotificationService` が使われて、ログ出力だけや」
+
+---
+
+##### Step 7-2: APP_ENV を production に変更
+
+**🐘ガネーシャ：** 「ほな、`APP_ENV` を `production` に変えてみ」
+
+**ファイル**: `.env`
+
+```bash
+APP_ENV=production
+```
+
+**🐘ガネーシャ：** 「`.env` を変えたら、キャッシュをクリアするんやで」
+
+```bash
+sail artisan config:clear && sail artisan config:cache
+```
+
+---
+
+##### Step 7-3: メール版の動作を確認
+
+**🐘ガネーシャ：** 「データベースをリセットして、もう一回 API を実行してみ」
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+```
+POST /api/tasks/4/start
+Authorization: Bearer {token}
+```
+
+**🐘ガネーシャ：** 「今度は Mailtrap の管理画面を見てみ」
+
+**👩‍💻ユーザー：** 「あっ！メールが届いてる！🎉」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              環境ごとの .env 設定                            │
+│  📧 Mailtrap - My Inbox                                     │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  【開発環境】.env                                           │
-│  APP_ENV=local                                              │
-│  → app()->environment('production') は false               │
-│  → LogNotificationService（ログ出力）                      │
-│                                                             │
-│  # メール設定（Mailtrap で動作確認用）                     │
-│  MAIL_HOST=sandbox.smtp.mailtrap.io                        │
-│  MAIL_USERNAME=xxx                                          │
-│  MAIL_PASSWORD=xxx                                          │
+│  From: noreply@example.com                                  │
+│  To: user@example.com                                       │
+│  Subject: タスク通知                                        │
 │                                                             │
 │  ─────────────────────────────────────────────────          │
 │                                                             │
-│  【本番環境】.env                                           │
-│  APP_ENV=production                                         │
-│  → app()->environment('production') は true                │
-│  → MailNotificationService（メール送信）                   │
+│  通知タイプ: task_started                                   │
 │                                                             │
-│  # メール設定（本番用の実際のメールサーバー）              │
-│  MAIL_HOST=smtp.sendgrid.net                               │
-│  MAIL_USERNAME=apikey                                       │
-│  MAIL_PASSWORD=実際のAPIキー                               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「`APP_ENV` を変えただけで、ログ版からメール版に切り替わった！」
+
+**🐘ガネーシャ：** 「**これが環境変数と Interface の組み合わせの威力や！**」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              APP_ENV による自動切り替えを体験！              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【APP_ENV=local】                                          │
+│  → LogNotificationService が使われる                       │
+│  → ログに出力される ✅ 確認済み                           │
+│                                                             │
+│  【APP_ENV=production】                                     │
+│  → MailNotificationService が使われる                      │
+│  → Mailtrap にメールが届く ✅ 確認済み                    │
+│                                                             │
+│  ─────────────────────────────────────────────────          │
+│                                                             │
+│  ✅ PHP コードを1行も変えずに切り替え成功！                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-#### 💡 本番環境のメール設定について
+##### Step 7-4: APP_ENV を local に戻す
 
-**🐘ガネーシャ：** 「ここで大事なことを言うとくで」
+**🐘ガネーシャ：** 「確認できたら、開発用に `APP_ENV` を戻しておこか」
+
+**ファイル**: `.env`
+
+```bash
+APP_ENV=local
+```
+
+```bash
+sail artisan config:clear && sail artisan config:cache
+```
+
+**👩‍💻ユーザー：** 「これでまたログ出力に戻りましたね！」
+
+**🐘ガネーシャ：** 「せや。**実務では本番サーバーにデプロイする時だけ `APP_ENV=production` になる**から、自動で切り替わるんや」
+
+---
+
+#### 💡 参考：実務での本番環境メール設定
+
+**🐘ガネーシャ：** 「ちなみに、実務では本番環境のメール設定はこんな感じになるで」
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              ⚠️ 本番環境のメール設定について                 │
+│              ⚠️ 参考：実務での本番環境メール設定             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  【今回の教材】                                             │
-│  ・Mailtrap を使って安全にメール送信を確認                 │
-│  ・実際のメールアドレスには届かない（テスト用）            │
+│  ・開発も本番も Mailtrap を使用                            │
+│  ・実際のメールアドレスには届かない（安全！）              │
 │                                                             │
-│  【本番環境では】                                           │
-│  ・Mailtrap は使わない！！                                 │
+│  【実務の本番環境では】                                     │
+│  ・Mailtrap は使わない                                     │
 │  ・SendGrid、Amazon SES、実際の SMTP サーバーを設定       │
 │  ・実際のユーザーにメールが届く                            │
 │                                                             │
@@ -2082,42 +2324,13 @@ class AppServiceProvider extends ServiceProvider
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**👩‍💻ユーザー：** 「なるほど！Mailtrap は教材用で、本番では本物のメールサーバーを使うんですね」
+**👩‍💻ユーザー：** 「なるほど！Mailtrap は教材や開発用で、実務の本番では本物のメールサーバーを使うんですね」
 
-**🐘ガネーシャ：** 「せや。**MailNotificationService のコードは変えない**んや。`.env` の設定を変えるだけで、本番のメールサーバーを使えるようになる」
+**🐘ガネーシャ：** 「せや。実務では **MailNotificationService のコードは変えずに**、`.env` の設定を変えるだけで本番のメールサーバーを使えるようになるんや。今回の教材では Mailtrap 固定やけどな」
 
-**👩‍💻ユーザー：** 「Interface で『ログかメールか』を切り替えて、.env で『どのメールサーバーを使うか』を設定する...2段階で分かれてるんですね！」
+**👩‍💻ユーザー：** 「つまり、今回学んだのは `APP_ENV` で『ログかメールか』を切り替える部分ですね！」
 
-**🐘ガネーシャ：** 「**完璧に理解しとる！** これが Interface と環境変数を組み合わせた設計や」
-
----
-
-#### 動作確認
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│              環境ごとの自動切り替え                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  【開発環境】APP_ENV=local                                  │
-│  → LogNotificationService が使われる                       │
-│  → ログに出力される                                        │
-│                                                             │
-│  【本番環境】APP_ENV=production                             │
-│  → MailNotificationService が使われる                      │
-│  → .env のメール設定で実際にメール送信                    │
-│                                                             │
-│  ─────────────────────────────────────────────────          │
-│                                                             │
-│  ✅ コードを変更せずに切り替え可能！                       │
-│  ✅ デプロイ時に自動で本番設定が適用される！               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**👩‍💻ユーザー：** 「すごい！デプロイするだけで自動的に本番設定になりますね！」
-
-**🐘ガネーシャ：** 「せや。これが**環境変数と Interface を組み合わせた設計**や。実務ではこのパターンがよく使われるで」
+**🐘ガネーシャ：** 「**その通りや！** 今回の教材ではそこを体験してもらったんや。実務では、さらに `.env` で『どのメールサーバーを使うか』も設定する。2段階で分かれとるんやで」
 
 **👩‍💻ユーザー：** 「将来 Slack 通知を追加したい時も、`SlackNotificationService` を作って、if 文を追加するだけですね！」
 
