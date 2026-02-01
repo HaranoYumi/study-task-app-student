@@ -1351,7 +1351,7 @@ class LogNotificationService implements NotificationServiceInterface  // ← 追
 }
 ```
 
-**🐘ガネーシャ：** 「前回作った `NotificationService` に`implements NotificationServiceInterface` を追加するんや」
+**🐘ガネーシャ：** 「 `LogNotificationService` に`implements NotificationServiceInterface` を追加するんや」
 
 ---
 
@@ -2093,10 +2093,11 @@ class CompleteTaskUseCase
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
 use App\Services\Notification\NotificationServiceInterface;
 use App\Services\Notification\LogNotificationService;
-use App\Services\Notification\MailNotificationService;
-use Illuminate\Support\ServiceProvider;
+use App\Services\Notification\MailNotificationService;  // ← 追加
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -2122,7 +2123,16 @@ class AppServiceProvider extends ServiceProvider
             );
         }
     }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        Vite::prefetch(concurrency: 3);
+    }
 }
+
 ```
 
 **👩‍💻ユーザー：** 「第3章で見たコードですね！」
