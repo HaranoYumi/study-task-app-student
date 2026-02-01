@@ -1663,7 +1663,13 @@ public function register(): void
 }
 ```
 
-**🐘ガネーシャ：** 「Postman でタスク完了 API を実行してみ」
+**🐘ガネーシャ：** 「API を実行する前に、データベースをリセットしておこか」
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+**🐘ガネーシャ：** 「ほな、Postman でタスク完了 API を実行してみ」
 
 ```
 POST /api/tasks/3/complete
@@ -1733,7 +1739,11 @@ class AppServiceProvider extends ServiceProvider
 
 ### 📝 Step 4: メール送信を確認
 
-**🐘ガネーシャ：** 「もう一回 API を実行してみ」
+**🐘ガネーシャ：** 「データベースをリセットして、もう一回 API を実行してみ」
+
+```bash
+sail artisan migrate:refresh --seed
+```
 
 ```
 POST /api/tasks/3/complete
@@ -1766,7 +1776,11 @@ Authorization: Bearer {token}
 
 ### 📝 Step 5: 他の UseCase も確認
 
-**🐘ガネーシャ：** 「タスク作成とタスク開始も試してみ」
+**🐘ガネーシャ：** 「データベースをリセットして、タスク作成とタスク開始も試してみ」
+
+```bash
+sail artisan migrate:refresh --seed
+```
 
 ```
 # タスク作成
