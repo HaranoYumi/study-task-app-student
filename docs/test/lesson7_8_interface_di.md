@@ -2134,7 +2134,13 @@ class AppServiceProvider extends ServiceProvider
 APP_ENV=local
 ```
 
-**🐘ガネーシャ：** 「`APP_ENV=local` やから、`LogNotificationService`（ログ版）が使われるはずや。API を実行してみ」
+**🐘ガネーシャ：** 「`APP_ENV=local` やから、`LogNotificationService`（ログ版）が使われるはずや。API を実行する前に、データベースをリセットしておこか」
+
+```bash
+sail artisan migrate:refresh --seed
+```
+
+**🐘ガネーシャ：** 「ほな、API を実行してみ」
 
 ```
 POST /api/tasks/3/complete
@@ -2184,7 +2190,11 @@ sail artisan config:clear && sail artisan config:cache
 
 ##### Step 7-3: メール版の動作を確認
 
-**🐘ガネーシャ：** 「もう一回 API を実行してみ」
+**🐘ガネーシャ：** 「データベースをリセットして、もう一回 API を実行してみ」
+
+```bash
+sail artisan migrate:refresh --seed
+```
 
 ```
 POST /api/tasks/4/start
