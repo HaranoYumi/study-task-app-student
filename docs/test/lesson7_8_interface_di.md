@@ -1670,7 +1670,15 @@ public function register(): void
 sail artisan migrate:refresh --seed
 ```
 
-**🐘ガネーシャ：** 「ほな、Postman でタスク完了 API を実行してみ」
+**🐘ガネーシャ：** 「ほな、Postman でタスク完了 API を実行してみ。その前に、**ログファイルの中身を削除**しておくとええで。そしたら新しいログだけ確認できるからな」
+
+```
+📁 storage/logs/laravel-YYYY-MM-DD.log
+```
+
+**💡 準備：** ログファイルを開いて、中身を全削除しておこう（`Ctrl+A` で全選択 → 削除 → 保存）
+
+**🐘ガネーシャ：** 「ログを空にしたら、API を実行してみ」
 
 ```
 POST /api/tasks/3/complete
@@ -1678,10 +1686,6 @@ Authorization: Bearer {token}
 ```
 
 **🐘ガネーシャ：** 「ログファイルを開いて確認してみ」
-
-```
-📁 storage/logs/laravel-YYYY-MM-DD.log
-```
 
 **💡 ヒント：** ログファイルは日付ごとに分かれてるで。今日の日付のファイルを開いてな。  
 例：`storage/logs/laravel-2026-01-31.log`
