@@ -1673,10 +1673,7 @@ class CompleteTaskUseCase
 │  2️⃣  コンストラクタに追加                                   │
 │      private NotificationService $notificationService       │
 │                                                             │
-│  3️⃣  ビジネスルールを private メソッドに分離               │
-│      ensureCanComplete() で isDoing() をチェック            │
-│                                                             │
-│  4️⃣  execute() 内で notify() を呼び出す                     │
+│  3️⃣  execute() 内で notify() を呼び出す                     │
 │      $this->notificationService->notify('task_completed', ...)│
 │                                                             │
 │  ✅ new NotificationService() とは書いてない！              │
