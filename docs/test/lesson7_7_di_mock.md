@@ -2239,7 +2239,7 @@ sail artisan test --filter=TaskApiTest
   ✓ doingステータスのタスクを完了できる                      0.08s  ← 新規追加
   ...
 
-  Tests:    8 passed (21 assertions)
+  Tests:    8 passed (19 assertions)
   Duration: 3.98s
 ```
 
