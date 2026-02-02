@@ -259,4 +259,41 @@ class TaskApiTest extends TestCase
             'status' => 'doing',  // ← doing のまま
         ]);
     }
+
+    /**
+     * todo ステータスのタスクは完了できない（409）
+     *
+     * 異常系：doing を経由せずに完了しようとした場合409エラーになる
+     */
+    public function test_todoステータスのタスクは完了できない(): void
+    {
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        $task = Task::factory()->create([
+            'project_id' => $this->project->id,
+            'created_by' => $this->user->id,
+            'status' => 'todo',  // ← まだ着手してない
+        ]);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
+        $response = $this->actingAs($this->user)
+            ->postJson("/api/tasks/{$task->id}/complete");
+
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
+        $response->assertStatus(409);
+        $response->assertJson([
+            'message' => '作業中のタスクのみ完了できます',
+        ]);
+
+        // ステータスが変わっていないことも確認
+        $this->assertDatabaseHas('tasks', [
+            'id' => $task->id,
+            'status' => 'todo',  // ← todo のまま
+        ]);
+    }
 }
