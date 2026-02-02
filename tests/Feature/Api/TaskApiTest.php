@@ -42,16 +42,33 @@ class TaskApiTest extends TestCase
      */
     public function test_タスクを作成できる(): void
     {
-        // Arrange は setUp で完了してるので、すぐ Act へ！
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
+        // NotificationService を Mock に差し替え
+        $mockNotification = Mockery::mock(LogNotificationService::class);
+        $mockNotification
+            ->shouldReceive('notify')
+            ->once()
+            ->with(
+                'task_created',
+                Mockery::on(fn($user) => $user->id === $this->user->id),
+                Mockery::any()
+            );
+        $this->app->instance(LogNotificationService::class, $mockNotification);
 
-        // Act
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
         $response = $this->actingAs($this->user)
             ->postJson("/api/projects/{$this->project->id}/tasks", [
                 'title' => '新しいタスク',
                 'description' => 'タスクの説明です',
             ]);
 
-        // Assert
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
         $response->assertStatus(201);
         $response->assertJson([
             'data' => [
@@ -66,18 +83,36 @@ class TaskApiTest extends TestCase
      */
     public function test_todoステータスのタスクを開始できる(): void
     {
-        // Arrange（タスクだけ追加で作成）
+        // ============================================
+        // 1. Arrange（準備）
+        // ============================================
         $task = Task::factory()->create([
             'project_id' => $this->project->id,
             'created_by' => $this->user->id,
             'status' => 'todo',
         ]);
 
-        // Act
+        // NotificationService を Mock に差し替え
+        $mockNotification = Mockery::mock(LogNotificationService::class);
+        $mockNotification
+            ->shouldReceive('notify')
+            ->once()
+            ->with(
+                'task_started',
+                Mockery::on(fn($user) => $user->id === $this->user->id),
+                Mockery::on(fn($payload) => $payload['id'] === $task->id)
+            );
+        $this->app->instance(LogNotificationService::class, $mockNotification);
+
+        // ============================================
+        // 2. Act（実行）
+        // ============================================
         $response = $this->actingAs($this->user)
             ->postJson("/api/tasks/{$task->id}/start");
 
-        // Assert
+        // ============================================
+        // 3. Assert（検証）
+        // ============================================
         $response->assertStatus(200);
         $response->assertJson([
             'data' => [
@@ -198,6 +233,12 @@ class TaskApiTest extends TestCase
             'created_by' => $this->user->id,
             'status' => 'doing',  // ← すでに作業中！
         ]);
+
+        // NotificationService を Mock に差し替え
+        // → 異常系なので notify() は呼ばれないはず
+        $mockNotification = Mockery::mock(LogNotificationService::class);
+        $mockNotification->shouldNotReceive('notify');
+        $this->app->instance(LogNotificationService::class, $mockNotification);
 
         // ============================================
         // 2. Act（実行）
