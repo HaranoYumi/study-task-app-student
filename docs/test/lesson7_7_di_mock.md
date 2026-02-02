@@ -280,6 +280,22 @@ class TaskController extends Controller
 
 **🐘ガネーシャ：** 「なんでかっちゅうと、**Controller のメソッドを呼び出すのは Laravel**やからや」
 
+**👩‍💻ユーザー：** 「どういうことですか？」
+
+**🐘ガネーシャ：** 「お前、こんなコード書いたことあるか？」
+
+```php
+<?php
+
+// ❌ こんなコード書いたことある？
+$taskController = new TaskController($completeTaskUseCase);
+$taskController->complete($task);
+```
+
+**👩‍💻ユーザー：** 「いえ、書いたことないです！」
+
+**🐘ガネーシャ：** 「せやろ？**Controller は私たちが new しない**んや。HTTP リクエストが来たら、**Laravel が勝手に作って呼んでくれる**んやで」
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │              Controller の場合                               │
@@ -292,14 +308,37 @@ class TaskController extends Controller
 │       ↓                                                     │
 │  Laravel が routes/api.php を見る                          │
 │       ↓                                                     │
+│  Laravel が Controller を new する（DI で自動生成）        │
+│       ↓                                                     │
 │  Laravel が Controller のメソッドを呼ぶ                    │
 │       ↓                                                     │
 │  引数に UseCase があれば、Laravel が自動で渡してくれる     │
 │                                                             │
-│  → 私たちが Controller のメソッドを直接呼ぶことはない      │
+│  → 私たちが Controller を new することはない               │
+│  → 私たちが Controller のメソッドを直接呼ぶこともない      │
 │  → だからメソッド引数に書いても困らない                    │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
+```
+
+```php
+<?php
+
+// ============================================
+// ❌ 私たちはこう書かない（Controller を直接 new しない）
+// ============================================
+$taskController = new TaskController($completeTaskUseCase);
+$taskController->complete($task);
+
+// ============================================
+// ✅ 実際はこう（HTTP リクエストが来たら Laravel が自動でやってくれる）
+// ============================================
+// POST /api/tasks/5/complete
+//     ↓
+// Laravel「routes/api.php を見るで...」
+// Laravel「TaskController の complete() を呼べばええんやな」
+// Laravel「TaskController を new するで（DI で UseCase も自動注入）」
+// Laravel「complete($task) を呼ぶで（$task も DI で自動取得）」
 ```
 
 **👩‍💻ユーザー：** 「なるほど！Controller は Laravel が呼んでくれるから、引数が増えても私たちは困らないんですね」
@@ -314,7 +353,29 @@ class TaskController extends Controller
 
 **👩‍💻ユーザー：** 「何が違うんですか？」
 
-**🐘ガネーシャ：** 「**UseCase のメソッドを呼び出すのは私たちのコード**やからや」
+**🐘ガネーシャ：** 「**UseCase のメソッドを呼び出すのは私たちのコード**やからや。さっきの Controller と比べてみ」
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Controller vs UseCase の違い                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【Controller】                                             │
+│  ・呼び出すのは → Laravel                                  │
+│  ・私たちは $taskController->complete() と書かない         │
+│  ・だからメソッド引数が増えても私たちは困らない            │
+│                                                             │
+│  【UseCase】                                                │
+│  ・呼び出すのは → 私たちのコード（Controller 内）          │
+│  ・私たちが $this->useCase->execute() と書いてる！         │
+│  ・だからメソッド引数が増えると私たちが困る                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**👩‍💻ユーザー：** 「あ！確かに Controller の中で `$this->completeTaskUseCase->execute()` って自分で書いてますね！」
+
+**🐘ガネーシャ：** 「せや！**UseCase のメソッドは私たちが直接呼び出す**んや。ほなもしメソッド引数で NotificationService を受け取るようにしたらどうなるか見てみ」
 
 ```php
 // CompleteTaskUseCase
@@ -341,12 +402,13 @@ class CompleteTaskUseCase
 <?php
 
 // Controller から呼び出す時...
+// ⚠️ 私たちが直接 ->execute() と書いてる！
 public function complete(
     Task $task, 
     NotificationService $notificationService  // ← Controller が知る必要ある
 ): JsonResponse {
     $task = $this->completeTaskUseCase->execute($task, $user, $notificationService);
-    //                                                        ↑ 毎回渡す必要がある
+    //      ↑ 私たちが書いてる                           ↑ 毎回渡す必要がある
     return response()->json(['data' => $task]);
 }
 ```
