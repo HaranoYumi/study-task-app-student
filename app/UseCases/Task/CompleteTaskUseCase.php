@@ -17,8 +17,14 @@ use App\Exceptions\ConflictException;
  */
 class CompleteTaskUseCase
 {
+    // ✅ これがコンストラクタ
+    // クラスが new される時に自動で呼ばれる
     public function __construct(
         private ProjectRules $projectRules,
+
+        //  ✅ private NotificationService $notificationService, // ← 追加するだけ！
+        //  ✅ private LogService $logService  // ← LogService も必要になった！追加！
+
     ) {}
 
     /**
@@ -28,8 +34,15 @@ class CompleteTaskUseCase
      * @param User $user ユーザー
      * @return Task
      */
+
+
     public function execute(Task $task, User $user): Task
     {
+//  public function execute(Task $task,User $user,
+    //     NotificationService $notificationService, // 増えた
+    //     LogService $logService                    // さらに増えた
+    // ): Task {}
+
         // ========================================
         // 1. 検証（ビジネスルール / 制約）
         // ========================================
@@ -47,6 +60,15 @@ class CompleteTaskUseCase
         // ========================================
         $task->status = 'done';
         $task->save();
+
+    //// ❌ こう書きたくなるけどテストで困る...
+    // newして直接呼ぶと、必ず本物のnotify()が実行される。テストで何度実行しても本物のメールが飛び続ける
+
+    // $service = new NotificationService();//←NotificationServiceのインスタンスを自分で作る
+    // $service->notify('task_completed', $user, $task->toArray()); //←作ったインスタンスのnotify()を呼ぶ
+
+    //// ✅ 外からもらったものを使う
+    // $this->notificationService->notify('task_completed', $user, $task->toArray());
 
         // ========================================
         // 3. 表示に必要なデータをロード（I/O都合）
@@ -76,3 +98,5 @@ class CompleteTaskUseCase
         }
     }
 }
+// コンストラクタなら影響なし
+

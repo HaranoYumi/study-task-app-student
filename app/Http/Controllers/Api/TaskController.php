@@ -47,6 +47,7 @@ class TaskController extends ApiController
     /**
      * タスク作成
      */
+    // ✅ Request は Laravel が自動で渡してくれる（DI）
     public function store(StoreTaskRequest $request, Project $project): JsonResponse
     {
         $task = $this->createTaskUseCase->execute(
@@ -112,8 +113,12 @@ class TaskController extends ApiController
     /**
      * タスクを完了（doing → done）
      */
+    // public function complete(Task $task, CompleteTaskUseCase $useCase): JsonResponse　→メソッド引数で受け取る
     public function complete(Request $request, Task $task): JsonResponse
+    // public function complete(Request $request, Task $task , NotificationService $notificationService): JsonResponse →コントローラーがServiceを知らないといけなくなる
+
     {
+    $this->completeTaskUseCase->execute($task, $user, $notificationService, $logService); →毎回渡す必要がある
         $task = $this->completeTaskUseCase->execute($task, $request->user());
         return $this->response()->successWithResource(
             new TaskResource($task),
@@ -121,3 +126,15 @@ class TaskController extends ApiController
         );
     }
 }
+// // BatchController.php（バッチ処理でも使ってた）
+// $this->completeTaskUseCase->execute($task, $user, $notificationService, $logService);
+// //                                                                      ↑ 追加
+
+// // TaskApiController.php（別のAPIでも使ってた）
+// $this->completeTaskUseCase->execute($task, $user, $notificationService, $logService);
+// //                                                                      ↑ 追加
+
+// // TestCode.php（テストコードも全部！）
+// $useCase->execute($task, $user, $mockNotification, $mockLog);
+// //      
+// // 保守性の問題や。UseCase の内部実装を変えただけやのに、呼び出し側を全部修正せなアカン
